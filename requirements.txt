@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+sqlmodel
+alembic
+python-dotenv
+passlib[bcrypt]
