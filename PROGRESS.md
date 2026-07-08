@@ -16,12 +16,13 @@
 - Настроена авторизация через браузер (git credential manager)
 - Код запушен в ветку `main`
 
-## ⏭️ Шаг 3: База данных (следующий шаг)
-Планируется:
-- Модели: `User`, `QueuePosition`, `Order`, `OrderOffer`
-- Подключение SQLModel + SQLite (`app/database.py`)
-- Первая Alembic-миграция
-- Накатить миграцию на пустую базу и проверить, что таблицы создались
+## ✅ Шаг 3: Модели БД + первая Alembic-миграция
+- Созданы модели: `User`, `QueuePosition`, `Order`, `OrderOffer` (`app/models/`)
+- Подключение SQLModel + SQLite настроено (`app/database.py`, `app/config.py`)
+- Alembic инициализирован, подключён к моделям через `env.py` (target_metadata = SQLModel.metadata)
+- `alembic.ini` настроен на `sqlite:///./carpool.db`
+- Сгенерирована и применена первая миграция (`create initial tables`)
+- Проверено: все таблицы созданы в `carpool.db` — `user`, `order`, `queueposition`, `orderoffer`, `alembic_version`
 
 ## Ещё впереди (по плану)
 - Шаг 4: Очередь (только чтение) — эндпоинт `/queue`
