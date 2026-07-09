@@ -52,8 +52,23 @@
   появляется запись с response=pending для того, кто сейчас первый
   по очереди
 
+## ✅ Шаг 6: Принятие/отказ — POST /orders/{id}/respond
+- Добавлен эндпоинт POST /orders/{order_id}/respond в app/main.py
+- Принимает user_id и response ("accepted" или "declined")
+- Находит актуальный pending-OrderOffer для заказа
+- При accepted: OrderOffer -> accepted, Order.status -> assigned,
+  Order.assigned_to = user_id, пользователь уходит в конец очереди
+  (максимальная позиция + 1)
+- При declined: OrderOffer -> declined, Order остаётся pending,
+  автоматически создаётся новый OrderOffer для следующего по очереди
+  (по кругу, если отказавшийся был последним)
+- Проверено локально через /docs: и accepted, и declined отработали
+  корректно, очередь и статусы заказа меняются как задумано
+  
+✅ Принятие/отказ — POST /orders/{id}/respond
+🔄 Завершение заказа — POST /orders/{id}/complete ← следующий шаг
+
 ## Ещё впереди (по плану)
-- Шаг 6: Принятие/отказ — `/orders/{id}/respond`
 - Шаг 7: Завершение заказа — `/orders/{id}/complete`
 - Шаг 8: История заказов — `/orders GET`
 - Шаг 9: Простой интерфейс (HTML-страницы)
