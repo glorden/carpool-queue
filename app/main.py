@@ -1,5 +1,5 @@
 from datetime import datetime
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from sqlmodel import Session, select
 from app.database import get_session
 from app.models.user import User
@@ -41,7 +41,7 @@ def get_queue(session: Session = Depends(get_session)):
     ]
 
 
-@app.post("/orders")
+@app.post("/orders", response_model=Order)
 def create_order(
     order_in: OrderCreate,
     session: Session = Depends(get_session),
@@ -52,7 +52,6 @@ def create_order(
     session.commit()
     session.refresh(order)
 
-    # Находим первого по очереди
     first_in_queue = session.exec(
         select(QueuePosition).order_by(QueuePosition.position)
     ).first()
@@ -61,11 +60,12 @@ def create_order(
         offer = OrderOffer(order_id=order.id, user_id=first_in_queue.user_id)
         session.add(offer)
         session.commit()
+        session.refresh(order)
 
     return order
 
 
-@app.post("/orders/{order_id}/respond")
+@app.post("/orders/{order_id}/respond", response_model=Order)
 def respond_to_order(
     order_id: int,
     respond_in: OrderRespond,
@@ -74,7 +74,7 @@ def respond_to_order(
     """Принять или отклонить предложенный заказ."""
     order = session.get(Order, order_id)
     if order is None:
-        return {"error": "Order not found"}
+        raise HTTPException(status_code=404, detail="Order not found")
 
     offer = session.exec(
         select(OrderOffer)
@@ -84,7 +84,7 @@ def respond_to_order(
     ).first()
 
     if offer is None:
-        return {"error": "No pending offer for this order"}
+        raise HTTPException(status_code=400, detail="No pending offer for this order")
 
     if respond_in.response == "accepted":
         offer.response = OfferResponse.accepted
@@ -95,7 +95,6 @@ def respond_to_order(
         order.assigned_to = respond_in.user_id
         session.add(order)
 
-        # Пользователь уходит в конец очереди
         max_position = session.exec(
             select(QueuePosition.position).order_by(QueuePosition.position.desc())
         ).first()
@@ -114,7 +113,6 @@ def respond_to_order(
         offer.responded_at = datetime.utcnow()
         session.add(offer)
 
-        # Ищем следующего по очереди (по кругу)
         current_qp = session.exec(
             select(QueuePosition).where(QueuePosition.user_id == respond_in.user_id)
         ).first()
@@ -124,7 +122,6 @@ def respond_to_order(
             .order_by(QueuePosition.position)
         ).first()
         if next_qp is None:
-            # дошли до конца очереди — возвращаемся к первому
             next_qp = session.exec(
                 select(QueuePosition).order_by(QueuePosition.position)
             ).first()
@@ -137,4 +134,30 @@ def respond_to_order(
         return order
 
     else:
-        return {"error": "response must be 'accepted' or 'declined'"}
+        raise HTTPException(
+            status_code=400, detail="response must be 'accepted' or 'declined'"
+        )
+
+
+@app.post("/orders/{order_id}/complete", response_model=Order)
+def complete_order(
+    order_id: int,
+    session: Session = Depends(get_session),
+):
+    """Отмечает заказ как завершённый."""
+    order = session.get(Order, order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    if order.status != OrderStatus.assigned:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Order must be 'assigned' to complete, current status: {order.status.value}",
+        )
+
+    order.status = OrderStatus.completed
+    order.completed_at = datetime.utcnow()
+    session.add(order)
+    session.commit()
+    session.refresh(order)
+    return order
