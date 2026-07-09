@@ -4,6 +4,13 @@ from sqlmodel import Session, select
 from app.database import get_session
 from app.models.user import User
 from app.models.queue import QueuePosition
+from app.models.order import Order
+from pydantic import BaseModel
+
+
+class OrderCreate(BaseModel):
+    route: str | None = None
+    comment: str | None = None
 
 app = FastAPI(title="Carpool Queue")
 
@@ -27,3 +34,14 @@ def get_queue(session: Session = Depends(get_session)):
         {"position": qp.position, "user_id": user.id, "name": user.name}
         for qp, user in results
     ]
+@app.post("/orders")
+def create_order(
+    order_in: OrderCreate,
+    session: Session = Depends(get_session),
+):
+    """Создаёт новый заказ со статусом pending, никому не назначен."""
+    order = Order(route=order_in.route, comment=order_in.comment)
+    session.add(order)
+    session.commit()
+    session.refresh(order)
+    return order
