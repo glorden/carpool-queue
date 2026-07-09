@@ -4,7 +4,7 @@ from sqlmodel import Session, select
 from app.database import get_session
 from app.models.user import User
 from app.models.queue import QueuePosition
-from app.models.order import Order
+from app.models.order import Order, OrderOffer
 from pydantic import BaseModel
 
 
@@ -39,9 +39,20 @@ def create_order(
     order_in: OrderCreate,
     session: Session = Depends(get_session),
 ):
-    """Создаёт новый заказ со статусом pending, никому не назначен."""
+    """Создаёт новый заказ и сразу предлагает его первому в очереди."""
     order = Order(route=order_in.route, comment=order_in.comment)
     session.add(order)
     session.commit()
     session.refresh(order)
+
+    # Находим первого по очереди
+    first_in_queue = session.exec(
+        select(QueuePosition).order_by(QueuePosition.position)
+    ).first()
+
+    if first_in_queue is not None:
+        offer = OrderOffer(order_id=order.id, user_id=first_in_queue.user_id)
+        session.add(offer)
+        session.commit()
+
     return order
