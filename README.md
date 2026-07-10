@@ -7,16 +7,38 @@
 - ✅ Шаг 5: эндпоинт POST /orders — создание нового заказа
 - ✅ Шаг 6: эндпоинт POST /orders/{id}/respond — принятие/отказ от заказа
 - ✅ Шаг 7: эндпоинт POST /orders/{id}/complete — завершение заказа
+- ✅ Шаг 8: эндпоинт GET /orders — история заказов с фильтрами
 Подробный лог прогресса и план дальнейших шагов — в файле [PROGRESS.md](./PROGRESS.md).
-## Запуск локально
-```bash
-python3.13 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+## Запуск локально (Windows, cmd.exe)
+
+```cmd
+cd C:\Users\Oleg\Desktop\carpool-queue
+chcp 65001
+.venv\Scripts\activate.bat
 uvicorn app.main:app --reload
 ```
+
 Открыть в браузере: http://127.0.0.1:8000
 Должно вернуться: `{"status": "ok", "message": "Carpool queue service is running"}`
+
+<details>
+<summary>Первоначальная настройка (один раз) и запуск на Linux/macOS</summary>
+
+Первоначальная настройка окружения:
+```cmd
+cd C:\Users\Oleg\Desktop\carpool-queue
+python -m venv .venv
+.venv\Scripts\activate.bat
+pip install -r requirements.txt
+```
+
+Запуск на Linux/macOS:
+```bash
+source .venv/bin/activate
+uvicorn app.main:app --reload
+```
+
+</details>
 ## База данных
 Используется SQLite + SQLModel, миграции — через Alembic.
 Перед первым запуском:
@@ -36,6 +58,7 @@ alembic upgrade head
 - `POST /orders` — создать новый заказ (route, comment — опциональны)
 - `POST /orders/{order_id}/respond` — принять/отклонить предложенный заказ
 - `POST /orders/{order_id}/complete` — отметить заказ как завершённый (заказ должен быть в статусе `assigned`)
+- `GET /orders` — история заказов; опциональные query-параметры `status`, `user_id`, `limit` (по умолчанию 100, максимум 500); сортировка по `created_at` (новые сверху)
 
 Ошибки (несуществующий заказ, некорректный статус и т.п.) возвращаются в стандартном формате FastAPI: `{"detail": "..."}` с соответствующим HTTP-статусом (404/400).
 ## Тестовые данные

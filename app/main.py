@@ -1,5 +1,5 @@
 from datetime import datetime
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from app.database import get_session
 from app.models.user import User
@@ -40,6 +40,31 @@ def get_queue(session: Session = Depends(get_session)):
         for qp, user in results
     ]
 
+@app.get("/orders", response_model=list[Order])
+def list_orders(
+    status: OrderStatus | None = None,
+    user_id: int | None = None,
+    limit: int = Query(default=100, le=500),
+    session: Session = Depends(get_session),
+):
+    """Возвращает историю заказов с опциональной фильтрацией.
+
+    - status: фильтр по статусу (pending/assigned/completed)
+    - user_id: фильтр по исполнителю (assigned_to)
+    - limit: максимум записей в ответе (по умолчанию 100, максимум 500)
+    """
+    statement = select(Order)
+
+    if status is not None:
+        statement = statement.where(Order.status == status)
+
+    if user_id is not None:
+        statement = statement.where(Order.assigned_to == user_id)
+
+    statement = statement.order_by(Order.created_at.desc()).limit(limit)
+
+    orders = session.exec(statement).all()
+    return orders
 
 @app.post("/orders", response_model=Order)
 def create_order(
