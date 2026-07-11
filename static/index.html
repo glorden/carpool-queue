@@ -2,10 +2,29 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Carpool Queue</title>
+    <title>Carpool Queue — дэшборд</title>
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <h1>Carpool Queue — дэшборд (заглушка)</h1>
-    <p>Если ты это видишь — статика раздаётся корректно.</p>
+    <header>
+        <h1>Carpool Queue</h1>
+        <div class="user-selector">
+            <label for="current-user">Кто я:</label>
+            <select id="current-user">
+                <option value="">— выбери —</option>
+            </select>
+        </div>
+    </header>
+
+    <main>
+        <section id="queue-section">
+            <h2>Очередь</h2>
+            <ol id="queue-list">
+                <li>Загрузка...</li>
+            </ol>
+        </section>
+    </main>
+
+    <script src="/static/js/dashboard.js"></script>
 </body>
 </html>

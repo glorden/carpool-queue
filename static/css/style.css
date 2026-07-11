@@ -1,0 +1,30 @@
+body {
+    font-family: system-ui, sans-serif;
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 20px;
+    color: #222;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 12px;
+    margin-bottom: 20px;
+}
+
+.user-selector select {
+    padding: 4px 8px;
+    font-size: 14px;
+}
+
+#queue-list {
+    padding-left: 20px;
+}
+
+#queue-list li.current-user {
+    font-weight: bold;
+    color: #0a7;
+}
