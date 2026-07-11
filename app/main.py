@@ -66,6 +66,47 @@ def list_orders(
     orders = session.exec(statement).all()
     return orders
 
+@app.get("/orders/pending")
+def list_pending_orders(session: Session = Depends(get_session)):
+    """Возвращает заказы в статусе pending вместе с данными активного OrderOffer
+    (кому сейчас предложен заказ)."""
+    orders = session.exec(
+        select(Order)
+        .where(Order.status == OrderStatus.pending)
+        .order_by(Order.created_at.desc())
+    ).all()
+
+    result = []
+    for order in orders:
+        offer = session.exec(
+            select(OrderOffer)
+            .where(OrderOffer.order_id == order.id)
+            .where(OrderOffer.response == OfferResponse.pending)
+            .order_by(OrderOffer.offered_at.desc())
+        ).first()
+
+        offered_to = None
+        if offer is not None:
+            user = session.get(User, offer.user_id)
+            offered_to = {
+                "user_id": offer.user_id,
+                "name": user.name if user else None,
+                "offered_at": offer.offered_at,
+            }
+
+        result.append(
+            {
+                "id": order.id,
+                "route": order.route,
+                "comment": order.comment,
+                "status": order.status,
+                "created_at": order.created_at,
+                "offered_to": offered_to,
+            }
+        )
+
+    return result
+
 @app.post("/orders", response_model=Order)
 def create_order(
     order_in: OrderCreate,
