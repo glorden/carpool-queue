@@ -6,6 +6,7 @@ from app.models.user import User
 from app.models.queue import QueuePosition
 from app.models.order import Order, OrderOffer, OfferResponse, OrderStatus
 from pydantic import BaseModel
+from fastapi.staticfiles import StaticFiles
 
 
 class OrderCreate(BaseModel):
@@ -19,7 +20,7 @@ class OrderRespond(BaseModel):
 
 
 app = FastAPI(title="Carpool Queue")
-
+app.mount("/static", StaticFiles(directory="static", html=True), name="static")
 
 @app.get("/")
 def read_root():
