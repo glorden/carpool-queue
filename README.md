@@ -37,9 +37,10 @@ pip install -r requirements.txt
 source .venv/bin/activate
 uvicorn app.main:app --reload
 ```
-
 </details>
+
 ## База данных
+
 Используется SQLite + SQLModel, миграции — через Alembic.
 Перед первым запуском:
 ```bash
@@ -53,6 +54,7 @@ alembic revision --autogenerate -m "описание изменения"
 alembic upgrade head
 ```
 ## Эндпоинты
+
 - `GET /` — проверка работоспособности сервиса
 - `GET /queue` — список пользователей в текущем порядке очереди
 - `POST /orders` — создать новый заказ (route, comment — опциональны)
@@ -61,7 +63,9 @@ alembic upgrade head
 - `GET /orders` — история заказов; опциональные query-параметры `status`, `user_id`, `limit` (по умолчанию 100, максимум 500); сортировка по `created_at` (новые сверху)
 
 Ошибки (несуществующий заказ, некорректный статус и т.п.) возвращаются в стандартном формате FastAPI: `{"detail": "..."}` с соответствующим HTTP-статусом (404/400).
+
 ## Тестовые данные
+
 Для проверки очереди можно наполнить БД тестовыми пользователями:
 ```bash
 python -m scripts.seed
