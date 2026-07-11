@@ -47,10 +47,87 @@ function renderQueue(queue) {
 
 let currentQueue = [];
 
+async function loadPendingOrders() {
+    const res = await fetch(`${API_BASE}/orders/pending`);
+    const orders = await res.json();
+    return orders;
+}
+
+function renderPendingOrders(orders) {
+    const list = document.getElementById("pending-list");
+    list.innerHTML = "";
+
+    if (orders.length === 0) {
+        const li = document.createElement("li");
+        li.textContent = "Нет активных заказов";
+        list.appendChild(li);
+        return;
+    }
+
+    orders.forEach((order) => {
+        const li = document.createElement("li");
+        const routeText = order.route ? order.route : "(без маршрута)";
+        const offeredText = order.offered_to
+            ? `предложено: ${order.offered_to.name}`
+            : "оффер не найден";
+        li.textContent = `#${order.id} ${routeText} — ${offeredText}`;
+        list.appendChild(li);
+    });
+}
+
+async function refreshPending() {
+    const pending = await loadPendingOrders();
+    renderPendingOrders(pending);
+}
+
+async function handleCreateOrder(event) {
+    event.preventDefault();
+    const routeInput = document.getElementById("route");
+    const commentInput = document.getElementById("comment");
+    const statusEl = document.getElementById("create-order-status");
+
+    const body = {
+        route: routeInput.value || null,
+        comment: commentInput.value || null,
+    };
+
+    statusEl.textContent = "Создаю...";
+    statusEl.classList.remove("error");
+
+    try {
+        const res = await fetch(`${API_BASE}/orders`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || "Ошибка создания заказа");
+        }
+
+        const order = await res.json();
+        statusEl.textContent = `Заказ #${order.id} создан`;
+        routeInput.value = "";
+        commentInput.value = "";
+
+        await refreshPending();
+    } catch (e) {
+        statusEl.textContent = e.message;
+        statusEl.classList.add("error");
+    }
+}
+
 async function init() {
     currentQueue = await loadQueue();
     populateUserSelector(currentQueue);
     renderQueue(currentQueue);
+
+    await refreshPending();
+
+    document
+        .getElementById("create-order-form")
+        .addEventListener("submit", handleCreateOrder);
 }
 
 init();

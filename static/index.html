@@ -23,6 +23,28 @@
                 <li>Загрузка...</li>
             </ol>
         </section>
+		<section id="pending-section">
+    <h2>Активные предложения</h2>
+    <ul id="pending-list">
+        <li>Загрузка...</li>
+    </ul>
+</section>
+
+<section id="create-order-section">
+    <h2>Создать заказ</h2>
+    <form id="create-order-form">
+        <div>
+            <label for="route">Маршрут:</label>
+            <input type="text" id="route" name="route" placeholder="Например: СПБ - Тверь">
+        </div>
+        <div>
+            <label for="comment">Комментарий:</label>
+            <input type="text" id="comment" name="comment" placeholder="Например: выезд утром">
+        </div>
+        <button type="submit">Создать заказ</button>
+    </form>
+    <p id="create-order-status"></p>
+</section>
     </main>
 
     <script src="/static/js/dashboard.js"></script>

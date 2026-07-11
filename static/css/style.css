@@ -28,3 +28,34 @@ header {
     font-weight: bold;
     color: #0a7;
 }
+#pending-list {
+    padding-left: 20px;
+}
+
+#create-order-section form div {
+    margin-bottom: 8px;
+}
+
+#create-order-section label {
+    display: inline-block;
+    width: 110px;
+}
+
+#create-order-section input {
+    padding: 4px 8px;
+    width: 250px;
+}
+
+#create-order-section button {
+    padding: 6px 14px;
+    margin-top: 4px;
+}
+
+#create-order-status {
+    font-size: 14px;
+    color: #0a7;
+}
+
+#create-order-status.error {
+    color: #c33;
+}
