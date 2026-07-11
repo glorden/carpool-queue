@@ -59,3 +59,65 @@ header {
 #create-order-status.error {
     color: #c33;
 }
+#my-orders-list {
+    padding-left: 20px;
+}
+
+.order-actions button {
+    margin-left: 8px;
+    padding: 2px 10px;
+    cursor: pointer;
+}
+
+.order-actions .btn-accept {
+    background: #d7f5e6;
+    border: 1px solid #0a7;
+}
+
+.order-actions .btn-decline {
+    background: #fbe0e0;
+    border: 1px solid #c33;
+}
+
+.order-actions .btn-complete {
+    background: #e0ecfb;
+    border: 1px solid #37c;
+}
+#filters-section {
+    margin-bottom: 16px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+#filters-section select {
+    padding: 4px 8px;
+}
+
+#filters-section button {
+    padding: 4px 12px;
+    cursor: pointer;
+}
+
+#history-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#history-table th,
+#history-table td {
+    text-align: left;
+    padding: 6px 10px;
+    border-bottom: 1px solid #eee;
+    font-size: 14px;
+}
+
+#history-table th {
+    border-bottom: 2px solid #ccc;
+}
+
+header a {
+    font-size: 14px;
+    text-decoration: none;
+    color: #37c;
+}

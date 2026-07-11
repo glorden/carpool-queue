@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Carpool Queue — история заказов</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>История заказов</h1>
+        <a href="/static/index.html">← Дэшборд</a>
+    </header>
+
+    <main>
+        <section id="filters-section">
+            <label for="filter-status">Статус:</label>
+            <select id="filter-status">
+                <option value="">Все</option>
+                <option value="pending">pending</option>
+                <option value="assigned">assigned</option>
+                <option value="completed">completed</option>
+                <option value="unassigned">unassigned</option>
+            </select>
+
+            <label for="filter-user">Исполнитель:</label>
+            <select id="filter-user">
+                <option value="">Все</option>
+            </select>
+
+            <button id="apply-filters">Применить</button>
+        </section>
+
+        <section id="history-section">
+            <table id="history-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Маршрут</th>
+                        <th>Комментарий</th>
+                        <th>Статус</th>
+                        <th>Исполнитель</th>
+                        <th>Создан</th>
+                        <th>Завершён</th>
+                    </tr>
+                </thead>
+                <tbody id="history-tbody">
+                    <tr><td colspan="7">Загрузка...</td></tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <script src="/static/js/history.js"></script>
+</body>
+</html>

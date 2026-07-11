@@ -27,6 +27,8 @@ function populateUserSelector(queue) {
             localStorage.removeItem("carpool_user_id");
         }
         renderQueue(currentQueue);
+        refreshPending();
+        refreshMyOrders();
     });
 }
 
@@ -55,6 +57,7 @@ async function loadPendingOrders() {
 
 function renderPendingOrders(orders) {
     const list = document.getElementById("pending-list");
+    const currentUserId = localStorage.getItem("carpool_user_id");
     list.innerHTML = "";
 
     if (orders.length === 0) {
@@ -70,7 +73,39 @@ function renderPendingOrders(orders) {
         const offeredText = order.offered_to
             ? `предложено: ${order.offered_to.name}`
             : "оффер не найден";
-        li.textContent = `#${order.id} ${routeText} — ${offeredText}`;
+
+        const textSpan = document.createElement("span");
+        textSpan.textContent = `#${order.id} ${routeText} — ${offeredText}`;
+        li.appendChild(textSpan);
+
+        const isOfferedToMe =
+            currentUserId &&
+            order.offered_to &&
+            String(order.offered_to.user_id) === currentUserId;
+
+        if (isOfferedToMe) {
+            const actions = document.createElement("span");
+            actions.className = "order-actions";
+
+            const acceptBtn = document.createElement("button");
+            acceptBtn.textContent = "Принять";
+            acceptBtn.className = "btn-accept";
+            acceptBtn.addEventListener("click", () =>
+                respondToOrder(order.id, "accepted")
+            );
+
+            const declineBtn = document.createElement("button");
+            declineBtn.textContent = "Отклонить";
+            declineBtn.className = "btn-decline";
+            declineBtn.addEventListener("click", () =>
+                respondToOrder(order.id, "declined")
+            );
+
+            actions.appendChild(acceptBtn);
+            actions.appendChild(declineBtn);
+            li.appendChild(actions);
+        }
+
         list.appendChild(li);
     });
 }
@@ -78,6 +113,104 @@ function renderPendingOrders(orders) {
 async function refreshPending() {
     const pending = await loadPendingOrders();
     renderPendingOrders(pending);
+}
+
+async function respondToOrder(orderId, response) {
+    const currentUserId = localStorage.getItem("carpool_user_id");
+    if (!currentUserId) {
+        alert("Сначала выбери, кто ты, в шапке страницы");
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/orders/${orderId}/respond`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                user_id: Number(currentUserId),
+                response: response,
+            }),
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || "Ошибка при ответе на заказ");
+        }
+
+        await refreshPending();
+        await refreshMyOrders();
+        currentQueue = await loadQueue();
+        renderQueue(currentQueue);
+    } catch (e) {
+        alert(e.message);
+    }
+}
+
+async function loadMyOrders() {
+    const currentUserId = localStorage.getItem("carpool_user_id");
+    if (!currentUserId) {
+        return [];
+    }
+    const res = await fetch(
+        `${API_BASE}/orders?status=assigned&user_id=${currentUserId}`
+    );
+    return await res.json();
+}
+
+function renderMyOrders(orders) {
+    const list = document.getElementById("my-orders-list");
+    list.innerHTML = "";
+
+    if (orders.length === 0) {
+        const li = document.createElement("li");
+        li.textContent = "Нет заказов в пути";
+        list.appendChild(li);
+        return;
+    }
+
+    orders.forEach((order) => {
+        const li = document.createElement("li");
+        const routeText = order.route ? order.route : "(без маршрута)";
+
+        const textSpan = document.createElement("span");
+        textSpan.textContent = `#${order.id} ${routeText}`;
+        li.appendChild(textSpan);
+
+        const actions = document.createElement("span");
+        actions.className = "order-actions";
+
+        const completeBtn = document.createElement("button");
+        completeBtn.textContent = "Завершить";
+        completeBtn.className = "btn-complete";
+        completeBtn.addEventListener("click", () => completeOrder(order.id));
+
+        actions.appendChild(completeBtn);
+        li.appendChild(actions);
+
+        list.appendChild(li);
+    });
+}
+
+async function refreshMyOrders() {
+    const orders = await loadMyOrders();
+    renderMyOrders(orders);
+}
+
+async function completeOrder(orderId) {
+    try {
+        const res = await fetch(`${API_BASE}/orders/${orderId}/complete`, {
+            method: "POST",
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || "Ошибка завершения заказа");
+        }
+
+        await refreshMyOrders();
+    } catch (e) {
+        alert(e.message);
+    }
 }
 
 async function handleCreateOrder(event) {
@@ -124,6 +257,7 @@ async function init() {
     renderQueue(currentQueue);
 
     await refreshPending();
+    await refreshMyOrders();
 
     document
         .getElementById("create-order-form")
