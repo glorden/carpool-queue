@@ -15,21 +15,26 @@ header {
     margin-bottom: 20px;
 }
 
+header a {
+    font-size: 14px;
+    text-decoration: none;
+    color: #37c;
+}
+
 .user-selector select {
     padding: 4px 8px;
     font-size: 14px;
 }
 
-#queue-list {
+#queue-list,
+#pending-list,
+#my-orders-list {
     padding-left: 20px;
 }
 
 #queue-list li.current-user {
     font-weight: bold;
     color: #0a7;
-}
-#pending-list {
-    padding-left: 20px;
 }
 
 #create-order-section form div {
@@ -59,9 +64,6 @@ header {
 #create-order-status.error {
     color: #c33;
 }
-#my-orders-list {
-    padding-left: 20px;
-}
 
 .order-actions button {
     margin-left: 8px;
@@ -83,11 +85,12 @@ header {
     background: #e0ecfb;
     border: 1px solid #37c;
 }
+
 #filters-section {
-    margin-bottom: 16px;
     display: flex;
-    gap: 12px;
     align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
 }
 
 #filters-section select {
@@ -114,10 +117,4 @@ header {
 
 #history-table th {
     border-bottom: 2px solid #ccc;
-}
-
-header a {
-    font-size: 14px;
-    text-decoration: none;
-    color: #37c;
 }
