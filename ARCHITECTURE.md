@@ -98,3 +98,4 @@ Ubuntu Server, Caddy, Python 3.13, FastAPI, SQLModel, SQLite, Alembic.
   `.venv\Scripts\activate.bat` → `uvicorn app.main:app --reload`
 - GitHub-коннектор в чате Claude недоступен — файлы репозитория передаются
   вручную через `type имя_файла`
+  
