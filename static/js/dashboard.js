@@ -1,4 +1,4 @@
-const API_BASE = "";  // тот же origin, отдельный base не нужен
+const API_BASE = ""; // тот же origin, отдельный base не нужен
 
 async function loadQueue() {
     const res = await fetch(`${API_BASE}/queue`);
@@ -69,10 +69,14 @@ function renderPendingOrders(orders) {
 
     orders.forEach((order) => {
         const li = document.createElement("li");
-        const routeText = order.route ? order.route : "(без маршрута)";
+
+        const routeText = order.route
+            ? order.route
+            : "Маршрут не указан";
+
         const offeredText = order.offered_to
-            ? `предложено: ${order.offered_to.name}`
-            : "оффер не найден";
+            ? `предложено водителю: ${order.offered_to.name}`
+            : "Предложение не найдено";
 
         const textSpan = document.createElement("span");
         textSpan.textContent = `#${order.id} ${routeText} — ${offeredText}`;
@@ -117,8 +121,9 @@ async function refreshPending() {
 
 async function respondToOrder(orderId, response) {
     const currentUserId = localStorage.getItem("carpool_user_id");
+
     if (!currentUserId) {
-        alert("Сначала выбери, кто ты, в шапке страницы");
+        alert("Сначала выберите себя в верхней части страницы.");
         return;
     }
 
@@ -139,6 +144,7 @@ async function respondToOrder(orderId, response) {
 
         await refreshPending();
         await refreshMyOrders();
+
         currentQueue = await loadQueue();
         renderQueue(currentQueue);
     } catch (e) {
@@ -148,12 +154,15 @@ async function respondToOrder(orderId, response) {
 
 async function loadMyOrders() {
     const currentUserId = localStorage.getItem("carpool_user_id");
+
     if (!currentUserId) {
         return [];
     }
+
     const res = await fetch(
         `${API_BASE}/orders?status=assigned&user_id=${currentUserId}`
     );
+
     return await res.json();
 }
 
@@ -170,7 +179,10 @@ function renderMyOrders(orders) {
 
     orders.forEach((order) => {
         const li = document.createElement("li");
-        const routeText = order.route ? order.route : "(без маршрута)";
+
+        const routeText = order.route
+            ? order.route
+            : "Маршрут не указан";
 
         const textSpan = document.createElement("span");
         textSpan.textContent = `#${order.id} ${routeText}`;
@@ -215,6 +227,7 @@ async function completeOrder(orderId) {
 
 async function handleCreateOrder(event) {
     event.preventDefault();
+
     const routeInput = document.getElementById("route");
     const commentInput = document.getElementById("comment");
     const statusEl = document.getElementById("create-order-status");
@@ -240,7 +253,9 @@ async function handleCreateOrder(event) {
         }
 
         const order = await res.json();
-        statusEl.textContent = `Заказ #${order.id} создан`;
+
+        statusEl.textContent = `Заказ №${order.id} создан`;
+
         routeInput.value = "";
         commentInput.value = "";
 
@@ -253,6 +268,7 @@ async function handleCreateOrder(event) {
 
 async function init() {
     currentQueue = await loadQueue();
+
     populateUserSelector(currentQueue);
     renderQueue(currentQueue);
 

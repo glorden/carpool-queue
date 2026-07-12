@@ -8,7 +8,7 @@
 <body>
     <header>
         <h1>История заказов</h1>
-        <a href="/static/index.html">← Дэшборд</a>
+        <a href="/static/index.html">← На главную</a>
     </header>
 
     <main>
@@ -16,10 +16,10 @@
             <label for="filter-status">Статус:</label>
             <select id="filter-status">
                 <option value="">Все</option>
-                <option value="pending">pending</option>
-                <option value="assigned">assigned</option>
-                <option value="completed">completed</option>
-                <option value="unassigned">unassigned</option>
+                <option value="pending">Ожидает</option>
+                <option value="assigned">Назначен</option>
+                <option value="completed">Завершён</option>
+                <option value="unassigned">Без исполнителя</option>
             </select>
 
             <label for="filter-user">Исполнитель:</label>
@@ -44,7 +44,9 @@
                     </tr>
                 </thead>
                 <tbody id="history-tbody">
-                    <tr><td colspan="7">Загрузка...</td></tr>
+                    <tr>
+                        <td colspan="7">Загрузка...</td>
+                    </tr>
                 </tbody>
             </table>
         </section>
