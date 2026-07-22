@@ -1,7 +1,12 @@
-"""Добавляет одного пользователя в очередь (в конец).
+"""Добавляет одного пользователя.
+
+По умолчанию ставит его в конец очереди (обычный водитель).
+С флагом --no-queue создаёт пользователя без очереди — для
+диспетчеров/админов, которые создают заказы, но сами в очереди
+водителей не участвуют.
 
 Использование:
-    python -m scripts.add_user "Имя Фамилия" username
+    python -m scripts.add_user "Имя Фамилия" username [--no-queue]
 """
 import sys
 
@@ -11,11 +16,16 @@ from app.database import engine
 from app.models.user import User
 from app.models.queue import QueuePosition
 
-if len(sys.argv) != 3:
-    print("Использование: python -m scripts.add_user \"Имя\" username")
+args = sys.argv[1:]
+no_queue = "--no-queue" in args
+if no_queue:
+    args.remove("--no-queue")
+
+if len(args) != 2:
+    print("Использование: python -m scripts.add_user \"Имя\" username [--no-queue]")
     sys.exit(1)
 
-name, username = sys.argv[1], sys.argv[2]
+name, username = args
 
 with Session(engine) as session:
     existing = session.exec(select(User).where(User.username == username)).first()
@@ -28,12 +38,15 @@ with Session(engine) as session:
     session.commit()
     session.refresh(user)
 
-    max_position = session.exec(
-        select(QueuePosition.position).order_by(QueuePosition.position.desc())
-    ).first()
-    next_position = (max_position or 0) + 1
+    if no_queue:
+        print(f"Добавлен: {user.name} (id={user.id}, username={username}), без очереди (диспетчер)")
+    else:
+        max_position = session.exec(
+            select(QueuePosition.position).order_by(QueuePosition.position.desc())
+        ).first()
+        next_position = (max_position or 0) + 1
 
-    session.add(QueuePosition(user_id=user.id, position=next_position))
-    session.commit()
+        session.add(QueuePosition(user_id=user.id, position=next_position))
+        session.commit()
 
-    print(f"Добавлен: {user.name} (id={user.id}, username={username}), позиция {next_position}")
+        print(f"Добавлен: {user.name} (id={user.id}, username={username}), позиция {next_position}")

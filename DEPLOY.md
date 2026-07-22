@@ -141,6 +141,11 @@ cd /home/deploy/carpool-queue
 .venv/bin/python -m scripts.add_user "Имя Фамилия" username
 ```
 
+Для диспетчера/админа (создаёт заказы, но сам не в очереди):
+```bash
+.venv/bin/python -m scripts.add_user "Имя Фамилия" username --no-queue
+```
+
 ## Обновление прод-сервера при новых коммитах
 
 Под пользователем `deploy`:
