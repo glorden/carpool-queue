@@ -27,6 +27,12 @@ header a {
     color: #37c;
 }
 
+.page-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+}
+
 .user-selector select {
     padding: 8px;
     font-size: 15px;
@@ -201,4 +207,52 @@ header a {
 
 #history-table th {
     border-bottom: 2px solid #ccc;
+}
+
+.price-section {
+    margin-bottom: 28px;
+}
+
+.price-section h2 {
+    font-size: 17px;
+    margin-bottom: 6px;
+}
+
+.price-section .price-note {
+    font-size: 13px;
+    color: #666;
+    margin-top: -4px;
+    margin-bottom: 10px;
+}
+
+.price-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 14px 0;
+}
+
+.price-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 7px 2px;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 14px;
+}
+
+.price-list li span:first-child {
+    min-width: 0;
+}
+
+.price-list li span:last-child {
+    font-weight: 600;
+    white-space: nowrap;
+    color: #333;
+}
+
+.price-list li.price-pending span:last-child {
+    font-weight: 400;
+    font-style: italic;
+    color: #999;
 }
