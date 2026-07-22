@@ -60,6 +60,15 @@ header {
     color: #0a7;
 }
 
+#pending-list li,
+#my-orders-list li {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
 #create-order-section form div {
     margin-bottom: 8px;
 }
@@ -92,8 +101,14 @@ header {
     color: #c33;
 }
 
+.order-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
 .order-actions button {
-    margin: 4px 8px 0 0;
+    margin: 0;
     padding: 8px 14px;
     min-height: 40px;
     cursor: pointer;
