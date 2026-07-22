@@ -5,6 +5,7 @@ const STATUS_LABELS = {
     assigned: "Назначен",
     completed: "Завершён",
     unassigned: "Без водителя",
+    cancelled: "Отменён",
 };
 
 async function loadUsers() {

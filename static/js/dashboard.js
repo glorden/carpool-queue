@@ -93,10 +93,10 @@ function renderPendingOrders(orders) {
             order.offered_to &&
             String(order.offered_to.user_id) === currentUserId;
 
-        if (isOfferedToMe) {
-            const actions = document.createElement("span");
-            actions.className = "order-actions";
+        const actions = document.createElement("span");
+        actions.className = "order-actions";
 
+        if (isOfferedToMe) {
             const acceptBtn = document.createElement("button");
             acceptBtn.textContent = "Принять";
             acceptBtn.className = "btn-accept";
@@ -113,9 +113,15 @@ function renderPendingOrders(orders) {
 
             actions.appendChild(acceptBtn);
             actions.appendChild(declineBtn);
-            li.appendChild(actions);
         }
 
+        const cancelBtn = document.createElement("button");
+        cancelBtn.textContent = "Отмена заказа";
+        cancelBtn.className = "btn-cancel";
+        cancelBtn.addEventListener("click", () => cancelOrder(order.id));
+        actions.appendChild(cancelBtn);
+
+        li.appendChild(actions);
         list.appendChild(li);
     });
 }
@@ -123,6 +129,31 @@ function renderPendingOrders(orders) {
 async function refreshPending() {
     const pending = await loadPendingOrders();
     renderPendingOrders(pending);
+}
+
+async function cancelOrder(orderId) {
+    if (!confirm("Отменить заказ?")) {
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/orders/${orderId}/cancel`, {
+            method: "POST",
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || "Ошибка при отмене заказа");
+        }
+
+        await refreshPending();
+        await refreshMyOrders();
+
+        currentQueue = await loadQueue();
+        renderQueue(currentQueue);
+    } catch (e) {
+        alert(e.message);
+    }
 }
 
 async function respondToOrder(orderId, response) {
@@ -202,7 +233,13 @@ function renderMyOrders(orders) {
         completeBtn.className = "btn-complete";
         completeBtn.addEventListener("click", () => completeOrder(order.id));
 
+        const cancelBtn = document.createElement("button");
+        cancelBtn.textContent = "Отмена заказа";
+        cancelBtn.className = "btn-cancel";
+        cancelBtn.addEventListener("click", () => cancelOrder(order.id));
+
         actions.appendChild(completeBtn);
+        actions.appendChild(cancelBtn);
         li.appendChild(actions);
 
         list.appendChild(li);

@@ -262,6 +262,41 @@ def complete_order(
     return order
 
 
+@app.post("/orders/{order_id}/cancel", response_model=Order)
+def cancel_order(
+    order_id: int,
+    session: Session = Depends(get_session),
+):
+    """Отменяет заказ. Если он был назначен водителю, возвращает того
+    в начало очереди (см. ARCHITECTURE.md)."""
+    order = session.get(Order, order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    if order.status in (OrderStatus.completed, OrderStatus.cancelled):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Order cannot be cancelled from status: {order.status.value}",
+        )
+
+    if order.status == OrderStatus.assigned and order.assigned_to is not None:
+        user_qp = session.exec(
+            select(QueuePosition).where(QueuePosition.user_id == order.assigned_to)
+        ).first()
+        if user_qp is not None:
+            min_position = session.exec(
+                select(QueuePosition.position).order_by(QueuePosition.position)
+            ).first()
+            user_qp.position = min_position - 1
+            session.add(user_qp)
+
+    order.status = OrderStatus.cancelled
+    session.add(order)
+    session.commit()
+    session.refresh(order)
+    return order
+
+
 @app.get("/price", response_model=list[PriceItem])
 def list_price_items(session: Session = Depends(get_session)):
     """Возвращает весь прайс-лист."""

@@ -9,6 +9,7 @@ class OrderStatus(str, Enum):
     assigned = "assigned"      # кто-то согласился и везёт
     completed = "completed"    # поездка завершена
     unassigned = "unassigned"  # все отказались, нужен ручной разбор
+    cancelled = "cancelled"    # заказ отменён (до или после назначения)
 
 
 class OfferResponse(str, Enum):
