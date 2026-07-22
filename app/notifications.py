@@ -27,9 +27,17 @@ def notify_offer(order, driver_name: str, driver_vk_id: int | None = None) -> No
         f"[id{driver_vk_id}|{driver_name}]" if driver_vk_id else driver_name
     )
     route_text = order.route or "маршрут не указан"
-    message = (
-        f"Заказ #{order.id} ({route_text}) предложен: {driver_mention}\n{SITE_URL}"
-    )
+
+    lines = [
+        f"Новый заказ №{order.id}.",
+        f"{route_text}.",
+    ]
+    if order.comment:
+        lines.append(f"{order.comment}.")
+    lines.append(f"Предлагаю взять заказ {driver_mention}.")
+    lines.append(SITE_URL)
+
+    message = "\n".join(lines)
 
     try:
         response = requests.post(
