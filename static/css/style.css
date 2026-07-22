@@ -108,6 +108,10 @@ header {
     margin-top: 2px;
 }
 
+.hint-warning[hidden] {
+    display: none;
+}
+
 .order-actions {
     display: flex;
     flex-wrap: wrap;
