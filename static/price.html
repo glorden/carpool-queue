@@ -1,2 +1,75 @@
-# Реальные позиции прайс-листа (направления/цены) удалены из истории
-# при чистке 2026-08-07 — коммерческие данные не должны быть в публичном репозитории.
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Прайс</title>
+    <link rel="icon" type="image/png" href="/static/favicon-32x32.png">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>Прайс</h1>
+    </header>
+
+    <nav id="site-nav" class="site-nav"></nav>
+
+    <main>
+        <div class="price-search-wrap">
+            <input type="text" id="price-search" placeholder="Поиск направления..." autocomplete="off">
+        </div>
+        <p id="price-no-results" class="price-note" style="display: none;">Ничего не найдено</p>
+
+        <section class="price-section" data-category="tour">
+            <h2>Туры (туда/обратно + ожидание)</h2>
+            <ul class="price-list" id="price-list-tour"></ul>
+            <form class="price-add-form" data-category="tour">
+                <input type="text" class="price-add-name" placeholder="Название" required>
+                <input type="text" class="price-add-price" placeholder="Цена" required>
+                <button type="submit">Добавить</button>
+            </form>
+        </section>
+
+        <section class="price-section" data-category="direction">
+            <h2>Направления (в одну сторону)</h2>
+            <p class="price-note">Отмеченные «уточнить» значения нужно перепроверить — цифры в исходном списке выглядят неполными.</p>
+            <ul class="price-list" id="price-list-direction"></ul>
+            <form class="price-add-form" data-category="direction">
+                <input type="text" class="price-add-name" placeholder="Название" required>
+                <input type="text" class="price-add-price" placeholder="Цена" required>
+                <button type="submit">Добавить</button>
+            </form>
+        </section>
+
+        <section class="price-section" data-category="business">
+            <h2>Бизнес-класс</h2>
+            <ul class="price-list" id="price-list-business"></ul>
+            <form class="price-add-form" data-category="business">
+                <input type="text" class="price-add-name" placeholder="Название" required>
+                <input type="text" class="price-add-price" placeholder="Цена" required>
+                <button type="submit">Добавить</button>
+            </form>
+        </section>
+
+        <section class="price-section" data-category="minivan">
+            <h2>Минивэны</h2>
+            <ul class="price-list" id="price-list-minivan"></ul>
+            <form class="price-add-form" data-category="minivan">
+                <input type="text" class="price-add-name" placeholder="Название" required>
+                <input type="text" class="price-add-price" placeholder="Цена" required>
+                <button type="submit">Добавить</button>
+            </form>
+        </section>
+
+        <details class="price-log">
+            <summary>История изменений</summary>
+            <ul id="price-log-list" class="price-log-list">
+                <li>Загрузка...</li>
+            </ul>
+        </details>
+    </main>
+
+    <script src="/static/js/nav.js"></script>
+    <script src="/static/js/price.js"></script>
+</body>
+</html>

@@ -5,6 +5,7 @@ from app.database import get_session
 from app.models.user import User
 from app.models.queue import QueuePosition
 from app.models.order import Order, OrderOffer, OfferResponse, OrderStatus
+from app.models.price import PriceItem, PriceLogEntry
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -18,6 +19,24 @@ class OrderCreate(BaseModel):
 class OrderRespond(BaseModel):
     user_id: int
     response: str  # "accepted" или "declined"
+
+
+class PriceItemCreate(BaseModel):
+    user_id: int
+    category: str
+    name: str
+    price_text: str
+
+
+class PriceItemUpdate(BaseModel):
+    user_id: int
+    category: str | None = None
+    name: str | None = None
+    price_text: str | None = None
+
+
+def _price_snapshot(item: PriceItem) -> str:
+    return f"{item.category} / {item.name} / {item.price_text}"
 
 
 app = FastAPI(title="Carpool Queue")
@@ -241,3 +260,136 @@ def complete_order(
     session.commit()
     session.refresh(order)
     return order
+
+
+@app.get("/price", response_model=list[PriceItem])
+def list_price_items(session: Session = Depends(get_session)):
+    """Возвращает весь прайс-лист."""
+    statement = select(PriceItem).order_by(PriceItem.category, PriceItem.id)
+    return session.exec(statement).all()
+
+
+@app.post("/price", response_model=PriceItem)
+def create_price_item(
+    item_in: PriceItemCreate,
+    session: Session = Depends(get_session),
+):
+    """Добавляет новую позицию прайса. Доступно любому пользователю
+    (см. ARCHITECTURE.md), действие логируется."""
+    item = PriceItem(
+        category=item_in.category,
+        name=item_in.name,
+        price_text=item_in.price_text,
+    )
+    session.add(item)
+    session.commit()
+    session.refresh(item)
+
+    log_entry = PriceLogEntry(
+        user_id=item_in.user_id,
+        action="created",
+        item_name=item.name,
+        new_value=_price_snapshot(item),
+    )
+    session.add(log_entry)
+    session.commit()
+
+    return item
+
+
+@app.put("/price/{item_id}", response_model=PriceItem)
+def update_price_item(
+    item_id: int,
+    item_in: PriceItemUpdate,
+    session: Session = Depends(get_session),
+):
+    """Изменяет позицию прайса. Действие логируется."""
+    item = session.get(PriceItem, item_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Price item not found")
+
+    old_value = _price_snapshot(item)
+
+    if item_in.category is not None:
+        item.category = item_in.category
+    if item_in.name is not None:
+        item.name = item_in.name
+    if item_in.price_text is not None:
+        item.price_text = item_in.price_text
+
+    session.add(item)
+    session.commit()
+    session.refresh(item)
+
+    log_entry = PriceLogEntry(
+        user_id=item_in.user_id,
+        action="updated",
+        item_name=item.name,
+        old_value=old_value,
+        new_value=_price_snapshot(item),
+    )
+    session.add(log_entry)
+    session.commit()
+
+    return item
+
+
+@app.delete("/price/{item_id}")
+def delete_price_item(
+    item_id: int,
+    user_id: int,
+    session: Session = Depends(get_session),
+):
+    """Удаляет позицию прайса. Действие логируется."""
+    item = session.get(PriceItem, item_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Price item not found")
+
+    old_value = _price_snapshot(item)
+    item_name = item.name
+
+    session.delete(item)
+    session.commit()
+
+    log_entry = PriceLogEntry(
+        user_id=user_id,
+        action="deleted",
+        item_name=item_name,
+        old_value=old_value,
+    )
+    session.add(log_entry)
+    session.commit()
+
+    return {"status": "ok"}
+
+
+@app.get("/price/log")
+def list_price_log(
+    limit: int = Query(default=100, le=500),
+    session: Session = Depends(get_session),
+):
+    """Возвращает лог изменений прайса, новые сверху."""
+    statement = (
+        select(PriceLogEntry)
+        .order_by(PriceLogEntry.created_at.desc())
+        .limit(limit)
+    )
+    entries = session.exec(statement).all()
+
+    result = []
+    for entry in entries:
+        user = session.get(User, entry.user_id)
+        result.append(
+            {
+                "id": entry.id,
+                "created_at": entry.created_at,
+                "user_id": entry.user_id,
+                "user_name": user.name if user else None,
+                "action": entry.action,
+                "item_name": entry.item_name,
+                "old_value": entry.old_value,
+                "new_value": entry.new_value,
+            }
+        )
+
+    return result

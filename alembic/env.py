@@ -17,7 +17,7 @@ if config.config_file_name is not None:
 # add your model's MetaData object here
 # for 'autogenerate' support
 from sqlmodel import SQLModel
-from app.models import User, QueuePosition, Order, OrderOffer
+from app.models import User, QueuePosition, Order, OrderOffer, PriceItem, PriceLogEntry
 
 target_metadata = SQLModel.metadata
 

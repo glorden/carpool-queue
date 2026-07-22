@@ -12,6 +12,7 @@
 - Завершение поездки (`POST /orders/{id}/complete`)
 - История всех заказов с фильтрами по статусу и пользователю (`GET /orders`)
 - Отображение активных предложений — кому и когда сейчас предложен заказ (`GET /orders/pending`)
+- Редактируемый прайс-лист (`GET/POST/PUT/DELETE /price`) с поиском и логом изменений (`GET /price/log`) — добавлять/менять/удалять позиции может любой из группы
 - Веб-интерфейс на русском языке: дэшборд с очередью и созданием заказов + страницы истории и прайса, все взаимосвязаны навигацией
 
 ## Стек технологий
@@ -38,17 +39,20 @@ carpool-queue/
 │   └── models/
 │       ├── user.py         # модель User
 │       ├── queue.py         # модель QueuePosition
-│       └── order.py         # модели Order и OrderOffer
+│       ├── order.py         # модели Order и OrderOffer
+│       └── price.py         # модели PriceItem и PriceLogEntry
 ├── alembic/                # миграции БД
 │   └── versions/
 ├── static/
 │   ├── index.html           # дэшборд (очередь + создание заказа)
 │   ├── history.html         # история заказов
-│   ├── price.html           # прайс-лист
+│   ├── price.html           # прайс-лист (редактируемый)
 │   ├── css/style.css
 │   └── js/
+│       ├── nav.js           # общая навигация на всех страницах
 │       ├── dashboard.js
-│       └── history.js
+│       ├── history.js
+│       └── price.js
 ├── scripts/
 │   └── seed.py              # наполнение БД тестовыми данными
 ├── requirements.txt
@@ -141,6 +145,11 @@ alembic upgrade head
 | `POST` | `/orders/{order_id}/complete` | отметить заказ завершённым (заказ должен быть в статусе `assigned`) |
 | `GET` | `/orders` | история заказов; query-параметры `status`, `user_id`, `limit` (по умолчанию 100, максимум 500); сортировка по `created_at` (новые сверху) |
 | `GET` | `/orders/pending` | заказы в статусе `pending` вместе с данными активного предложения — кому сейчас предложен заказ и когда |
+| `GET` | `/price` | весь прайс-лист |
+| `POST` | `/price` | добавить позицию (`user_id`, `category`, `name`, `price_text`) |
+| `PUT` | `/price/{item_id}` | изменить позицию (`user_id` + поля, которые меняются) |
+| `DELETE` | `/price/{item_id}?user_id=...` | удалить позицию |
+| `GET` | `/price/log` | лог изменений прайса, новые сверху; query-параметр `limit` (по умолчанию 100, максимум 500) |
 
 Ошибки возвращаются в стандартном формате FastAPI: `{"detail": "..."}` с соответствующим HTTP-статусом (`404`/`400`).
 

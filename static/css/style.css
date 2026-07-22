@@ -250,31 +250,104 @@ header {
 .price-list {
     list-style: none;
     padding: 0;
-    margin: 0 0 14px 0;
+    margin: 0 0 10px 0;
 }
 
 .price-list li {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 12px;
     padding: 7px 2px;
     border-bottom: 1px solid #f0f0f0;
     font-size: 14px;
 }
 
-.price-list li span:first-child {
+.price-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.price-name {
     min-width: 0;
 }
 
-.price-list li span:last-child {
+.price-value {
     font-weight: 600;
     white-space: nowrap;
     color: #333;
 }
 
-.price-list li.price-pending span:last-child {
+.price-pending .price-value {
     font-weight: 400;
     font-style: italic;
     color: #999;
+}
+
+.price-list .order-actions {
+    margin-top: 4px;
+}
+
+.price-row-editing {
+    flex-wrap: wrap;
+}
+
+.price-edit-input {
+    flex: 1;
+    min-width: 100px;
+    padding: 6px 8px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.price-add-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.price-add-form .price-add-name {
+    flex: 2;
+    min-width: 140px;
+}
+
+.price-add-form .price-add-price {
+    flex: 1;
+    min-width: 100px;
+}
+
+.price-add-form input {
+    padding: 8px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.price-add-form button {
+    padding: 8px 16px;
+    min-height: 40px;
+    cursor: pointer;
+}
+
+.price-log {
+    margin-top: 24px;
+    font-size: 13px;
+}
+
+.price-log summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 8px 0;
+}
+
+.price-log-list {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0 0 0;
+}
+
+.price-log-list li {
+    padding: 6px 0;
+    border-bottom: 1px solid #f0f0f0;
+    color: #555;
 }
