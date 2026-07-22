@@ -10,9 +10,13 @@
 
 \## \[Unreleased]
 
-\### Планируется
+\### Добавлено
 
-\- Деплой на VPS (Ubuntu Server + Caddy + systemd + HTTPS)
+\- Деплой на VPS: Ubuntu Server + Caddy (автоматический HTTPS) + systemd, `zakaz.glorden.ru`
+
+\- `DEPLOY.md` — инструкция по установке и обновлению на сервере
+
+\### Планируется
 
 \- Решение по identity-проверкам в /respond и /complete (см. ARCHITECTURE.md)
 

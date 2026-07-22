@@ -18,7 +18,7 @@
 
 - **Backend:** Python 3.13, FastAPI, SQLModel, SQLite, Alembic
 - **Frontend:** HTML, CSS, vanilla JavaScript (без фреймворков и шаблонизаторов)
-- **Инфраструктура (план на Шаг 11):** Ubuntu Server, Caddy, systemd
+- **Инфраструктура:** Ubuntu Server, Caddy, systemd (задеплоено на `zakaz.glorden.ru`, см. [DEPLOY.md](./DEPLOY.md))
 
 ## Как это работает (бизнес-логика)
 
@@ -140,3 +140,4 @@ alembic upgrade head
 
 - [PROGRESS.md](./PROGRESS.md) — журнал выполнения этапов
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — архитектурные решения, логика очереди, технический долг, формат работы
+- [DEPLOY.md](./DEPLOY.md) — установка и запуск на VPS (Ubuntu + Caddy + systemd + HTTPS)
