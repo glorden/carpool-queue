@@ -268,6 +268,12 @@ async function completeOrder(orderId) {
     }
 }
 
+function checkRouteLatin() {
+    const routeInput = document.getElementById("route");
+    const warning = document.getElementById("route-latin-warning");
+    warning.hidden = !/[a-zA-Z]/.test(routeInput.value);
+}
+
 async function handleCreateOrder(event) {
     event.preventDefault();
 
@@ -301,6 +307,7 @@ async function handleCreateOrder(event) {
 
         routeInput.value = "";
         commentInput.value = "";
+        checkRouteLatin();
 
         await refreshPending();
     } catch (e) {
@@ -322,6 +329,9 @@ async function init() {
     document
         .getElementById("create-order-form")
         .addEventListener("submit", handleCreateOrder);
+    document
+        .getElementById("route")
+        .addEventListener("input", checkRouteLatin);
 }
 
 init();
