@@ -4,3 +4,4 @@ sqlmodel
 alembic
 python-dotenv
 passlib[bcrypt]
+requests

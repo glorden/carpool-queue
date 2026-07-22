@@ -6,6 +6,7 @@ from app.models.user import User
 from app.models.queue import QueuePosition
 from app.models.order import Order, OrderOffer, OfferResponse, OrderStatus
 from app.models.price import PriceItem, PriceLogEntry
+from app.notifications import notify_offer
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -161,6 +162,9 @@ def create_order(
         session.commit()
         session.refresh(order)
 
+        driver = session.get(User, first_in_queue.user_id)
+        notify_offer(order, driver.name if driver else "?")
+
     return order
 
 
@@ -230,6 +234,10 @@ def respond_to_order(
 
         session.commit()
         session.refresh(order)
+
+        driver = session.get(User, next_qp.user_id)
+        notify_offer(order, driver.name if driver else "?")
+
         return order
 
     else:
