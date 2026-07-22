@@ -16,21 +16,31 @@ header {
     justify-content: space-between;
     align-items: center;
     gap: 8px 16px;
-    border-bottom: 1px solid #ddd;
-    padding-bottom: 12px;
-    margin-bottom: 20px;
+    margin-bottom: 12px;
 }
 
-header a {
+.site-nav {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 16px;
+    overflow-x: auto;
+    padding-bottom: 14px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #ddd;
     font-size: 14px;
+}
+
+.site-nav a,
+.site-nav-current {
+    white-space: nowrap;
     text-decoration: none;
     color: #37c;
 }
 
-.page-nav {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px 16px;
+.site-nav-current {
+    color: #888;
+    font-weight: 600;
 }
 
 .user-selector select {
@@ -207,6 +217,18 @@ header a {
 
 #history-table th {
     border-bottom: 2px solid #ccc;
+}
+
+.price-search-wrap {
+    margin-bottom: 8px;
+}
+
+#price-search {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
 }
 
 .price-section {
