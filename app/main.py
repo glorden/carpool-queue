@@ -33,6 +33,13 @@ def health_check():
     return {"status": "ok", "message": "Carpool queue service is running"}
 
 
+@app.get("/users")
+def list_users(session: Session = Depends(get_session)):
+    """Возвращает всех пользователей, включая диспетчеров без очереди."""
+    users = session.exec(select(User)).all()
+    return [{"user_id": u.id, "name": u.name} for u in users]
+
+
 @app.get("/queue")
 def get_queue(session: Session = Depends(get_session)):
     """Возвращает список пользователей в порядке очереди."""

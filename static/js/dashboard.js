@@ -6,11 +6,17 @@ async function loadQueue() {
     return queue;
 }
 
-function populateUserSelector(queue) {
+async function loadUsers() {
+    const res = await fetch(`${API_BASE}/users`);
+    const users = await res.json();
+    return users;
+}
+
+function populateUserSelector(users) {
     const select = document.getElementById("current-user");
     const savedUserId = localStorage.getItem("carpool_user_id");
 
-    queue.forEach((entry) => {
+    users.forEach((entry) => {
         const option = document.createElement("option");
         option.value = entry.user_id;
         option.textContent = entry.name;
@@ -268,8 +274,9 @@ async function handleCreateOrder(event) {
 
 async function init() {
     currentQueue = await loadQueue();
+    const users = await loadUsers();
 
-    populateUserSelector(currentQueue);
+    populateUserSelector(users);
     renderQueue(currentQueue);
 
     await refreshPending();
