@@ -163,7 +163,7 @@ def create_order(
         session.refresh(order)
 
         driver = session.get(User, first_in_queue.user_id)
-        notify_offer(order, driver.name if driver else "?")
+        notify_offer(order, driver.name if driver else "?", driver.vk_id if driver else None)
 
     return order
 
@@ -236,7 +236,7 @@ def respond_to_order(
         session.refresh(order)
 
         driver = session.get(User, next_qp.user_id)
-        notify_offer(order, driver.name if driver else "?")
+        notify_offer(order, driver.name if driver else "?", driver.vk_id if driver else None)
 
         return order
 

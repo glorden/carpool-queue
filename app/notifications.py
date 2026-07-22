@@ -3,15 +3,18 @@ import random
 
 import requests
 
-from app.config import VK_GROUP_TOKEN, VK_PEER_ID
+from app.config import SITE_URL, VK_GROUP_TOKEN, VK_PEER_ID
 
 logger = logging.getLogger(__name__)
 
 VK_API_VERSION = "5.199"
 
 
-def notify_offer(order, driver_name: str) -> None:
+def notify_offer(order, driver_name: str, driver_vk_id: int | None = None) -> None:
     """Шлёт сообщение в общую беседу VK о том, кому сейчас предложен заказ.
+
+    Если у водителя известен vk_id — тегает его ([id...|Имя]), иначе просто
+    пишет имя текстом.
 
     Best-effort: если VK не настроен или недоступен, просто логируем
     и не прерываем основной сценарий (создание/переход заказа не должны
@@ -20,8 +23,13 @@ def notify_offer(order, driver_name: str) -> None:
     if not VK_GROUP_TOKEN or not VK_PEER_ID:
         return
 
+    driver_mention = (
+        f"[id{driver_vk_id}|{driver_name}]" if driver_vk_id else driver_name
+    )
     route_text = order.route or "маршрут не указан"
-    message = f"Заказ #{order.id} ({route_text}) предложен: {driver_name}"
+    message = (
+        f"Заказ #{order.id} ({route_text}) предложен: {driver_mention}\n{SITE_URL}"
+    )
 
     try:
         response = requests.post(

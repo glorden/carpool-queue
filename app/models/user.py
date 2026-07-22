@@ -11,3 +11,5 @@ class User(SQLModel, table=True):
     active: bool = Field(default=True)
     # active=False используем позже для "заморозки" (отпуск/болезнь) —
     # такому пользователю заказы предлагаться не будут
+    vk_id: int | None = Field(default=None)
+    # id пользователя VK — для тега в уведомлениях (см. ARCHITECTURE.md)
