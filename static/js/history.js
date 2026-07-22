@@ -49,6 +49,7 @@ function renderOrders(orders, users) {
 
     if (orders.length === 0) {
         const tr = document.createElement("tr");
+        tr.className = "empty-row";
         tr.innerHTML = `<td colspan="7">Заказы не найдены</td>`;
         tbody.appendChild(tr);
         return;
@@ -68,13 +69,13 @@ function renderOrders(orders, users) {
             : "—";
 
         tr.innerHTML = `
-            <td>${order.id}</td>
-            <td>${order.route || "—"}</td>
-            <td>${order.comment || "—"}</td>
-            <td>${STATUS_LABELS[order.status] || order.status}</td>
-            <td>${driverName}</td>
-            <td>${formatDate(order.created_at)}</td>
-            <td>${formatDate(order.completed_at)}</td>
+            <td data-label="ID">${order.id}</td>
+            <td data-label="Маршрут">${order.route || "—"}</td>
+            <td data-label="Комментарий">${order.comment || "—"}</td>
+            <td data-label="Статус">${STATUS_LABELS[order.status] || order.status}</td>
+            <td data-label="Водитель">${driverName}</td>
+            <td data-label="Создан">${formatDate(order.created_at)}</td>
+            <td data-label="Завершён">${formatDate(order.completed_at)}</td>
         `;
 
         tbody.appendChild(tr);

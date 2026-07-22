@@ -130,6 +130,67 @@ header a {
     border-collapse: collapse;
 }
 
+@media (max-width: 640px) {
+    .table-scroll {
+        overflow-x: visible;
+    }
+
+    #history-table {
+        min-width: 0;
+    }
+
+    #history-table thead {
+        display: none;
+    }
+
+    #history-table, #history-table tbody, #history-table tr, #history-table td {
+        display: block;
+        width: 100%;
+    }
+
+    #history-table tr {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 4px 10px;
+        margin-bottom: 10px;
+    }
+
+    #history-table tr.empty-row {
+        border: none;
+        padding: 0;
+    }
+
+    #history-table td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 0;
+        border-bottom: 1px solid #f0f0f0;
+        text-align: right;
+    }
+
+    #history-table td:last-child {
+        border-bottom: none;
+    }
+
+    #history-table td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        text-align: left;
+        color: #555;
+    }
+
+    #history-table tr.empty-row td {
+        justify-content: center;
+        text-align: center;
+    }
+
+    #history-table tr.empty-row td::before {
+        content: none;
+    }
+}
+
 #history-table th,
 #history-table td {
     text-align: left;
