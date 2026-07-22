@@ -261,16 +261,20 @@ header {
 
 .price-row {
     display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 12px;
+    align-items: center;
+    gap: 10px;
 }
 
 .price-name {
+    flex: 1;
     min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .price-value {
+    flex-shrink: 0;
     font-weight: 600;
     white-space: nowrap;
     color: #333;
@@ -280,6 +284,46 @@ header {
     font-weight: 400;
     font-style: italic;
     color: #999;
+}
+
+.price-icon-actions {
+    flex-shrink: 0;
+    display: flex;
+    gap: 2px;
+}
+
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.icon-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.icon-edit {
+    color: #37c;
+}
+
+.icon-edit:hover {
+    background: #e0ecfb;
+}
+
+.icon-delete {
+    color: #c33;
+}
+
+.icon-delete:hover {
+    background: #fbe0e0;
 }
 
 .price-list .order-actions {
