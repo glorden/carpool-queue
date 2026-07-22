@@ -292,11 +292,19 @@ def cancel_order(
             select(QueuePosition).where(QueuePosition.user_id == order.assigned_to)
         ).first()
         if user_qp is not None:
-            min_position = session.exec(
-                select(QueuePosition.position).order_by(QueuePosition.position)
-            ).first()
-            user_qp.position = min_position - 1
-            session.add(user_qp)
+            others = session.exec(
+                select(QueuePosition)
+                .where(QueuePosition.user_id != order.assigned_to)
+                .order_by(QueuePosition.position)
+            ).all()
+
+            # Вставляем сразу после текущего первого, не обгоняя его —
+            # тот, кто первый по праву, не должен терять место из-за
+            # чужой отмены (см. ARCHITECTURE.md)
+            new_order = [others[0], user_qp, *others[1:]] if others else [user_qp]
+            for position, qp in enumerate(new_order):
+                qp.position = position
+                session.add(qp)
 
     order.status = OrderStatus.cancelled
     session.add(order)
