@@ -20,7 +20,7 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 apt-get -o Dpkg::Options::='--force-confold' upgrade -y
 apt-get autoremove -y
-apt-get install -y python3-venv python3-pip git ufw curl
+apt-get install -y python3-venv python3-pip git ufw curl sqlite3
 ```
 Если после этого существует `/var/run/reboot-required` — перезагрузить
 сервер (`reboot`) и переподключиться.
