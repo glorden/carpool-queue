@@ -7,6 +7,7 @@ from app.models.queue import QueuePosition
 from app.models.order import Order, OrderOffer, OfferResponse, OrderStatus
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 
 class OrderCreate(BaseModel):
@@ -24,6 +25,11 @@ app.mount("/static", StaticFiles(directory="static", html=True), name="static")
 
 @app.get("/")
 def read_root():
+    return FileResponse("static/index.html")
+
+
+@app.get("/health")
+def health_check():
     return {"status": "ok", "message": "Carpool queue service is running"}
 
 
