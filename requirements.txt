@@ -5,3 +5,7 @@ alembic
 python-dotenv
 passlib[bcrypt]
 requests
+
+# для тестов (pytest tests/)
+pytest
+httpx

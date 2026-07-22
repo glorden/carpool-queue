@@ -132,6 +132,30 @@ systemctl reload caddy
 ```
 Caddy сам выпускает и продлевает сертификат Let's Encrypt.
 
+## Бэкап базы данных
+
+Ежедневный `sqlite3 .backup` через cron под пользователем `deploy`,
+скрипт — `scripts/backup_db.sh` (см. ARCHITECTURE.md — там же логика
+хранения). Копии лежат в `backups/` рядом с `carpool.db`, в Git не
+попадают (`*.db` в `.gitignore`).
+
+Настройка (один раз, под пользователем `deploy`):
+```bash
+chmod +x /home/deploy/carpool-queue/scripts/backup_db.sh
+crontab -e
+```
+Добавить строку:
+```
+15 3 * * * /home/deploy/carpool-queue/scripts/backup_db.sh >> /home/deploy/carpool-queue/backups/backup.log 2>&1
+```
+
+Восстановление из копии (сервис нужно остановить на время):
+```bash
+sudo systemctl stop carpool-queue
+cp backups/carpool-2026-07-22.db carpool.db
+sudo systemctl start carpool-queue
+```
+
 ## Добавление пользователей на проде
 
 Отдельного API для этого нет — пользователи добавляются скриптом
@@ -168,6 +192,7 @@ sudo systemctl restart carpool-queue
 | Виртуальное окружение | `/home/deploy/carpool-queue/.venv` |
 | `.env` (секреты) | `/home/deploy/carpool-queue/.env` |
 | БД (SQLite) | `/home/deploy/carpool-queue/carpool.db` |
+| Бэкапы БД | `/home/deploy/carpool-queue/backups/` |
 | systemd unit | `/etc/systemd/system/carpool-queue.service` |
 | Caddyfile | `/etc/caddy/Caddyfile` |
 | SSH-ключ для GitHub (deploy key) | `/home/deploy/.ssh/github_carpool` |

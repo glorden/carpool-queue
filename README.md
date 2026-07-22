@@ -127,6 +127,15 @@ python -m scripts.add_user "Имя Фамилия" username
 python -m scripts.add_user "Имя Фамилия" username --no-queue
 ```
 
+### Тесты
+
+Точечные автотесты на самую хрупкую логику — арифметику позиций
+в очереди (`tests/test_queue_logic.py`), на изолированной временной БД:
+
+```bash
+pytest tests/
+```
+
 ### Если менялись модели БД
 
 ```bash
