@@ -6,7 +6,7 @@ from app.models.user import User
 from app.models.queue import QueuePosition
 from app.models.order import Order, OrderOffer, OfferResponse, OrderStatus
 from app.models.price import PriceItem, PriceLogEntry
-from app.notifications import notify_offer
+from app.notifications import notify_accepted, notify_offer
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -209,12 +209,18 @@ def respond_to_order(
 
         session.commit()
         session.refresh(order)
+
+        driver = session.get(User, respond_in.user_id)
+        notify_accepted(order, driver.name if driver else "?", driver.vk_id if driver else None)
+
         return order
 
     elif respond_in.response == "declined":
         offer.response = OfferResponse.declined
         offer.responded_at = datetime.utcnow()
         session.add(offer)
+
+        declining_user = session.get(User, respond_in.user_id)
 
         current_qp = session.exec(
             select(QueuePosition).where(QueuePosition.user_id == respond_in.user_id)
@@ -236,7 +242,12 @@ def respond_to_order(
         session.refresh(order)
 
         driver = session.get(User, next_qp.user_id)
-        notify_offer(order, driver.name if driver else "?", driver.vk_id if driver else None)
+        notify_offer(
+            order,
+            driver.name if driver else "?",
+            driver.vk_id if driver else None,
+            declined_by=declining_user.name if declining_user else None,
+        )
 
         return order
 
