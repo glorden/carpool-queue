@@ -45,7 +45,7 @@ function renderQueue(queue) {
     list.innerHTML = "";
     queue.forEach((entry) => {
         const li = document.createElement("li");
-        li.textContent = `${entry.name} (позиция ${entry.position})`;
+        li.textContent = entry.name;
         if (savedUserId && String(entry.user_id) === savedUserId) {
             li.classList.add("current-user");
         }

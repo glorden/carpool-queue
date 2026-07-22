@@ -8,7 +8,6 @@ class OrderStatus(str, Enum):
     pending = "pending"        # только создан, ещё никому не назначен
     assigned = "assigned"      # кто-то согласился и везёт
     completed = "completed"    # поездка завершена
-    unassigned = "unassigned"  # все отказались, нужен ручной разбор
     cancelled = "cancelled"    # заказ отменён (до или после назначения)
 
 

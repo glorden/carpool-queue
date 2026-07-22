@@ -51,8 +51,8 @@ Ubuntu Server, Caddy, Python 3.13, FastAPI, SQLModel, SQLite, Alembic.
 - **`GET /orders` не отдаёт `OrderOffer`** — плоский список `Order`,
   единообразно с `/respond` и `/complete`. Детальная история предложений —
   отдельный эндпоинт при необходимости (`GET /orders/{id}/offers`)
-- **`POST /orders/{id}/cancel`** — отменяет заказ из `pending`,
-  `assigned` или `unassigned`; из `completed`/`cancelled` — `400`.
+- **`POST /orders/{id}/cancel`** — отменяет заказ из `pending` или
+  `assigned`; из `completed`/`cancelled` — `400`.
   Тела запроса не требует (как и `/complete`): для `assigned`-заказа
   водитель уже известен из `order.assigned_to`, идентичность
   вызывающего не проверяется — та же модель доступа, что у

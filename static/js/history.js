@@ -4,7 +4,6 @@ const STATUS_LABELS = {
     pending: "Ожидает",
     assigned: "Назначен",
     completed: "Завершён",
-    unassigned: "Без водителя",
     cancelled: "Отменён",
 };
 
@@ -69,15 +68,22 @@ function renderOrders(orders, users) {
             ? userMap[order.assigned_to] || `#${order.assigned_to}`
             : "—";
 
-        tr.innerHTML = `
-            <td data-label="ID">${order.id}</td>
-            <td data-label="Маршрут">${order.route || "—"}</td>
-            <td data-label="Комментарий">${order.comment || "—"}</td>
-            <td data-label="Статус">${STATUS_LABELS[order.status] || order.status}</td>
-            <td data-label="Водитель">${driverName}</td>
-            <td data-label="Создан">${formatDate(order.created_at)}</td>
-            <td data-label="Завершён">${formatDate(order.completed_at)}</td>
-        `;
+        const cells = [
+            ["ID", order.id],
+            ["Маршрут", order.route || "—"],
+            ["Комментарий", order.comment || "—"],
+            ["Статус", STATUS_LABELS[order.status] || order.status],
+            ["Водитель", driverName],
+            ["Создан", formatDate(order.created_at)],
+            ["Завершён", formatDate(order.completed_at)],
+        ];
+
+        cells.forEach(([label, value]) => {
+            const td = document.createElement("td");
+            td.dataset.label = label;
+            td.textContent = value;
+            tr.appendChild(td);
+        });
 
         tbody.appendChild(tr);
     });

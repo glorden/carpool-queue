@@ -145,7 +145,7 @@ alembic upgrade head
 | `POST` | `/orders` | создать новый заказ (`route`, `comment` — опциональны) |
 | `POST` | `/orders/{order_id}/respond` | принять/отклонить предложенный заказ |
 | `POST` | `/orders/{order_id}/complete` | отметить заказ завершённым (заказ должен быть в статусе `assigned`) |
-| `POST` | `/orders/{order_id}/cancel` | отменить заказ (из `pending`/`assigned`/`unassigned`); если был `assigned` — водитель возвращается в начало очереди |
+| `POST` | `/orders/{order_id}/cancel` | отменить заказ (из `pending`/`assigned`); если был `assigned` — водитель возвращается в начало очереди |
 | `GET` | `/orders` | история заказов; query-параметры `status`, `user_id`, `limit` (по умолчанию 100, максимум 500); сортировка по `created_at` (новые сверху) |
 | `GET` | `/orders/pending` | заказы в статусе `pending` вместе с данными активного предложения — кому сейчас предложен заказ и когда |
 | `GET` | `/price` | весь прайс-лист |
