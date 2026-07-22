@@ -29,6 +29,7 @@
 
 ### Планируется
 - Решение по identity-проверкам в `/respond` и `/complete` (см. ARCHITECTURE.md)
+- Курс на будущее: разделение `routers`/`services` при росте `main.py` (см. ARCHITECTURE.md)
 
 ## [0.1.0] - 2026-07-12
 
