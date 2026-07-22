@@ -1,5 +1,5 @@
 const SITE_PAGES = [
-    { href: "/", label: "Дэшборд" },
+    { href: "/", label: "Главная" },
     { href: "/static/history.html", label: "История заказов" },
     { href: "/static/price.html", label: "Прайс" },
 ];
