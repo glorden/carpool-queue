@@ -13,8 +13,8 @@ with Session(engine) as session:
     session.refresh(user1)
     session.refresh(user2)
 
-    session.add(QueuePosition(user_id=user1.id, position=1))
-    session.add(QueuePosition(user_id=user2.id, position=2))
+    session.add(QueuePosition(user_id=user1.id, queue_type="long", position=1))
+    session.add(QueuePosition(user_id=user2.id, queue_type="long", position=2))
     session.commit()
 
     print("Тестовые данные добавлены:")

@@ -14,8 +14,14 @@ async function loadUsers() {
 
 function populateUserFilter(users) {
     const select = document.getElementById("filter-user");
+    const seen = new Set();
 
     users.forEach((entry) => {
+        // /queue без queue_type отдаёт обе очереди — пользователь,
+        // состоящий в обеих, попал бы в фильтр дважды
+        if (seen.has(entry.user_id)) return;
+        seen.add(entry.user_id);
+
         const option = document.createElement("option");
         option.value = entry.user_id;
         option.textContent = entry.name;

@@ -159,10 +159,17 @@ sudo systemctl start carpool-queue
 ## Добавление пользователей на проде
 
 Отдельного API для этого нет — пользователи добавляются скриптом
-(ставит человека в конец очереди):
+(по умолчанию ставит человека в конец обеих очередей — дальней и
+короткой):
 ```bash
 cd /home/deploy/carpool-queue
 .venv/bin/python -m scripts.add_user "Имя Фамилия" username
+```
+
+Только в одну из очередей:
+```bash
+.venv/bin/python -m scripts.add_user "Имя Фамилия" username --queue-type=long
+.venv/bin/python -m scripts.add_user "Имя Фамилия" username --queue-type=short
 ```
 
 Для диспетчера/админа (создаёт заказы, но сам не в очереди):
@@ -172,11 +179,12 @@ cd /home/deploy/carpool-queue
 
 ## Перестановка порядка в очереди на проде
 
-Для редкой ручной правки (список — ровно те же username, что сейчас
-в очереди, в нужном порядке):
+Для редкой ручной правки. Первый аргумент — тип очереди (`long` или
+`short`), дальше — ровно те же username, что сейчас в этой очереди,
+в нужном порядке; вторая очередь не затрагивается:
 ```bash
 cd /home/deploy/carpool-queue
-.venv/bin/python -m scripts.reorder_queue username1 username2 username3
+.venv/bin/python -m scripts.reorder_queue long username1 username2 username3
 ```
 
 ## Обновление прод-сервера при новых коммитах
@@ -190,8 +198,22 @@ git pull
 sudo systemctl restart carpool-queue
 ```
 (`pip install` можно пропустить, если `requirements.txt` не менялся;
-`alembic upgrade head` безопасно запускать всегда — если новых миграций
-нет, ничего не произойдёт.)
+`alembic upgrade head` обычно безопасно запускать всегда — если новых
+миграций нет, ничего не произойдёт.)
+
+**Исключение — миграции, которые на SQLite требуют `batch_alter_table`
+(пересоздание таблицы: смена `NOT NULL`, constraint'ов и т.п., а не
+только `add_column`).** SQLite не даёт транзакционный DDL, поэтому
+запись от ещё не перезапущенного старого процесса в это окно может
+провалиться. Для таких миграций — сначала остановить сервис, сделать
+ручной снэпшот, потом мигрировать:
+```bash
+sudo systemctl stop carpool-queue
+sqlite3 carpool.db ".backup carpool-pre-<название миграции>.db"
+.venv/bin/alembic upgrade head
+sudo systemctl start carpool-queue
+```
+Первый пример такой миграции — `5437dcec06ba` (Шаг 23, вторая очередь).
 
 ## Где что лежит
 

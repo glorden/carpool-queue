@@ -1,12 +1,14 @@
 """Добавляет одного пользователя.
 
-По умолчанию ставит его в конец очереди (обычный водитель).
-С флагом --no-queue создаёт пользователя без очереди — для
-диспетчеров/админов, которые создают заказы, но сами в очереди
-водителей не участвуют.
+По умолчанию ставит его в конец обеих очередей (обычный водитель,
+возит и дальние, и короткие поездки). С флагом --queue-type=long|short
+добавляет только в одну из очередей. С флагом --no-queue создаёт
+пользователя без очереди — для диспетчеров/админов, которые создают
+заказы, но сами в очереди водителей не участвуют.
 
 Использование:
     python -m scripts.add_user "Имя Фамилия" username [--no-queue]
+    python -m scripts.add_user "Имя Фамилия" username [--queue-type=long|short]
 """
 import sys
 
@@ -21,8 +23,25 @@ no_queue = "--no-queue" in args
 if no_queue:
     args.remove("--no-queue")
 
+queue_type_arg = None
+for arg in list(args):
+    if arg.startswith("--queue-type="):
+        queue_type_arg = arg.split("=", 1)[1]
+        args.remove(arg)
+
+if no_queue and queue_type_arg:
+    print("--no-queue и --queue-type нельзя использовать вместе")
+    sys.exit(1)
+
+if queue_type_arg and queue_type_arg not in ("long", "short"):
+    print(f"--queue-type должен быть long или short (получено: {queue_type_arg!r})")
+    sys.exit(1)
+
 if len(args) != 2:
-    print("Использование: python -m scripts.add_user \"Имя\" username [--no-queue]")
+    print(
+        'Использование: python -m scripts.add_user "Имя" username '
+        "[--no-queue | --queue-type=long|short]"
+    )
     sys.exit(1)
 
 name, username = args
@@ -41,12 +60,18 @@ with Session(engine) as session:
     if no_queue:
         print(f"Добавлен: {user.name} (id={user.id}, username={username}), без очереди (диспетчер)")
     else:
-        max_position = session.exec(
-            select(QueuePosition.position).order_by(QueuePosition.position.desc())
-        ).first()
-        next_position = (max_position or 0) + 1
-
-        session.add(QueuePosition(user_id=user.id, position=next_position))
+        queue_types = [queue_type_arg] if queue_type_arg else ["long", "short"]
+        positions = {}
+        for qt in queue_types:
+            max_position = session.exec(
+                select(QueuePosition.position)
+                .where(QueuePosition.queue_type == qt)
+                .order_by(QueuePosition.position.desc())
+            ).first()
+            next_position = (max_position or 0) + 1
+            session.add(QueuePosition(user_id=user.id, queue_type=qt, position=next_position))
+            positions[qt] = next_position
         session.commit()
 
-        print(f"Добавлен: {user.name} (id={user.id}, username={username}), позиция {next_position}")
+        positions_text = ", ".join(f"{qt}: позиция {pos}" for qt, pos in positions.items())
+        print(f"Добавлен: {user.name} (id={user.id}, username={username}), {positions_text}")

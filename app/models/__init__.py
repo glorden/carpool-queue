@@ -1,5 +1,5 @@
 from app.models.user import User
-from app.models.queue import QueuePosition
+from app.models.queue import QueuePosition, QueueType
 from app.models.order import Order, OrderOffer, OrderStatus, OfferResponse
 from app.models.price import PriceItem, PriceLogEntry
 from app.models.activity import ActivityLog
@@ -7,6 +7,7 @@ from app.models.activity import ActivityLog
 __all__ = [
     "User",
     "QueuePosition",
+    "QueueType",
     "Order",
     "OrderOffer",
     "OrderStatus",

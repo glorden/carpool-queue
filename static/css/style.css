@@ -49,15 +49,48 @@ header {
     max-width: 100%;
 }
 
-#queue-list,
+#queue-list-long,
+#queue-list-short,
 #pending-list,
 #my-orders-list {
     padding-left: 20px;
 }
 
-#queue-list li.current-user {
+.queue-group {
+    margin-bottom: 16px;
+}
+
+.queue-group h3 {
+    font-size: 15px;
+    color: #555;
+    margin-bottom: 4px;
+}
+
+#queue-list-long li.current-user,
+#queue-list-short li.current-user {
     font-weight: bold;
     color: #0a7;
+}
+
+.type-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.type-tag-long {
+    background: #e0ecfb;
+    border: 1px solid #37c;
+    color: #37c;
+}
+
+.type-tag-short {
+    background: #fdf0d5;
+    border: 1px solid #c90;
+    color: #c90;
 }
 
 #pending-list li,
@@ -90,6 +123,28 @@ header {
     margin-top: 4px;
     min-height: 44px;
     font-size: 15px;
+}
+
+.order-type-field {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 14px;
+}
+
+.order-type-label {
+    display: inline-block;
+    width: 110px;
+}
+
+.radio-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    width: auto;
+    font-size: 15px;
+    cursor: pointer;
 }
 
 #create-order-status {

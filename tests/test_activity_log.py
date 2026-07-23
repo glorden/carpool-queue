@@ -12,7 +12,7 @@ def event_types(client, **params):
 def test_full_order_lifecycle_writes_expected_events(client, db_engine):
     a, b, _ = seed_queue(db_engine, ["A", "B", "C"])
 
-    order_id = client.post("/orders", json={"route": "test"}).json()["id"]
+    order_id = client.post("/orders", json={"route": "test", "queue_type": "long"}).json()["id"]
     client.post(f"/orders/{order_id}/respond", json={"user_id": a, "response": "declined"})
     client.post(f"/orders/{order_id}/respond", json={"user_id": b, "response": "accepted"})
     client.post(f"/orders/{order_id}/complete")
@@ -32,7 +32,7 @@ def test_full_order_lifecycle_writes_expected_events(client, db_engine):
 def test_cancel_assigned_order_logs_queue_change_and_cancellation(client, db_engine):
     a, _, _ = seed_queue(db_engine, ["A", "B", "C"])
 
-    order_id = client.post("/orders", json={"route": "test"}).json()["id"]
+    order_id = client.post("/orders", json={"route": "test", "queue_type": "long"}).json()["id"]
     client.post(f"/orders/{order_id}/respond", json={"user_id": a, "response": "accepted"})
     client.post(f"/orders/{order_id}/cancel")
 
@@ -44,7 +44,7 @@ def test_cancel_assigned_order_logs_queue_change_and_cancellation(client, db_eng
 def test_self_assign_logs_reason_and_queue_change(client, db_engine):
     a, b, _ = seed_queue(db_engine, ["A", "B", "C"])
 
-    order_id = client.post("/orders", json={"route": "test"}).json()["id"]
+    order_id = client.post("/orders", json={"route": "test", "queue_type": "long"}).json()["id"]
     client.post(
         f"/orders/{order_id}/self-assign",
         json={"user_id": b, "reason": "уже в городе подачи"},
@@ -64,8 +64,8 @@ def test_self_assign_logs_reason_and_queue_change(client, db_engine):
 def test_activity_filters_by_event_type_and_user(client, db_engine):
     a, _, _ = seed_queue(db_engine, ["A", "B", "C"])
 
-    client.post("/orders", json={"route": "one"})
-    client.post("/orders", json={"route": "two"})
+    client.post("/orders", json={"route": "one", "queue_type": "long"})
+    client.post("/orders", json={"route": "two", "queue_type": "long"})
 
     created_entries = client.get("/activity", params={"event_type": "order_created"}).json()
     assert len(created_entries) == 2

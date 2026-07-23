@@ -1,9 +1,17 @@
 const API_BASE = ""; // тот же origin, отдельный base не нужен
 
-async function loadQueue() {
-    const res = await fetch(`${API_BASE}/queue`);
-    const queue = await res.json();
-    return queue;
+const QUEUE_TYPE_LABELS = { long: "Дальний", short: "Короткий" };
+
+function createTypeBadge(queueType) {
+    const badge = document.createElement("span");
+    badge.className = `type-tag type-tag-${queueType}`;
+    badge.textContent = QUEUE_TYPE_LABELS[queueType] || queueType;
+    return badge;
+}
+
+async function loadQueue(queueType) {
+    const res = await fetch(`${API_BASE}/queue?queue_type=${queueType}`);
+    return await res.json();
 }
 
 async function loadUsers() {
@@ -32,14 +40,15 @@ function populateUserSelector(users) {
         } else {
             localStorage.removeItem("carpool_user_id");
         }
-        renderQueue(currentQueue);
+        renderQueue(currentQueues.long, "long");
+        renderQueue(currentQueues.short, "short");
         refreshPending();
         refreshMyOrders();
     });
 }
 
-function renderQueue(queue) {
-    const list = document.getElementById("queue-list");
+function renderQueue(queue, queueType) {
+    const list = document.getElementById(`queue-list-${queueType}`);
     const savedUserId = localStorage.getItem("carpool_user_id");
 
     list.innerHTML = "";
@@ -53,7 +62,14 @@ function renderQueue(queue) {
     });
 }
 
-let currentQueue = [];
+let currentQueues = { long: [], short: [] };
+
+async function refreshQueues() {
+    currentQueues.long = await loadQueue("long");
+    currentQueues.short = await loadQueue("short");
+    renderQueue(currentQueues.long, "long");
+    renderQueue(currentQueues.short, "short");
+}
 
 async function loadPendingOrders() {
     const res = await fetch(`${API_BASE}/orders/pending`);
@@ -85,7 +101,10 @@ function renderPendingOrders(orders) {
             : "Предложение не найдено";
 
         const textSpan = document.createElement("span");
-        textSpan.textContent = `#${order.id} ${routeText} — ${offeredText}`;
+        textSpan.appendChild(createTypeBadge(order.queue_type));
+        textSpan.appendChild(
+            document.createTextNode(` #${order.id} ${routeText} — ${offeredText}`)
+        );
         li.appendChild(textSpan);
 
         const isOfferedToMe =
@@ -157,9 +176,7 @@ async function cancelOrder(orderId) {
 
         await refreshPending();
         await refreshMyOrders();
-
-        currentQueue = await loadQueue();
-        renderQueue(currentQueue);
+        await refreshQueues();
     } catch (e) {
         alert(e.message);
     }
@@ -190,9 +207,7 @@ async function respondToOrder(orderId, response) {
 
         await refreshPending();
         await refreshMyOrders();
-
-        currentQueue = await loadQueue();
-        renderQueue(currentQueue);
+        await refreshQueues();
     } catch (e) {
         alert(e.message);
     }
@@ -234,9 +249,7 @@ async function selfAssignOrder(orderId) {
 
         await refreshPending();
         await refreshMyOrders();
-
-        currentQueue = await loadQueue();
-        renderQueue(currentQueue);
+        await refreshQueues();
     } catch (e) {
         alert(e.message);
     }
@@ -275,7 +288,8 @@ function renderMyOrders(orders) {
             : "Маршрут не указан";
 
         const textSpan = document.createElement("span");
-        textSpan.textContent = `#${order.id} ${routeText}`;
+        textSpan.appendChild(createTypeBadge(order.queue_type));
+        textSpan.appendChild(document.createTextNode(` #${order.id} ${routeText}`));
         li.appendChild(textSpan);
 
         const actions = document.createElement("span");
@@ -333,14 +347,23 @@ async function handleCreateOrder(event) {
     const routeInput = document.getElementById("route");
     const commentInput = document.getElementById("comment");
     const statusEl = document.getElementById("create-order-status");
+    const queueTypeInput = document.querySelector('input[name="queue_type"]:checked');
+
+    statusEl.classList.remove("error");
+
+    if (!queueTypeInput) {
+        statusEl.textContent = "Выберите тип заказа: дальний или короткий.";
+        statusEl.classList.add("error");
+        return;
+    }
 
     const body = {
         route: routeInput.value || null,
         comment: commentInput.value || null,
+        queue_type: queueTypeInput.value,
     };
 
     statusEl.textContent = "Создаю...";
-    statusEl.classList.remove("error");
 
     try {
         const res = await fetch(`${API_BASE}/orders`, {
@@ -360,6 +383,9 @@ async function handleCreateOrder(event) {
 
         routeInput.value = "";
         commentInput.value = "";
+        document
+            .querySelectorAll('input[name="queue_type"]')
+            .forEach((input) => (input.checked = false));
         checkRouteLatin();
 
         await refreshPending();
@@ -370,11 +396,10 @@ async function handleCreateOrder(event) {
 }
 
 async function init() {
-    currentQueue = await loadQueue();
     const users = await loadUsers();
 
     populateUserSelector(users);
-    renderQueue(currentQueue);
+    await refreshQueues();
 
     await refreshPending();
     await refreshMyOrders();

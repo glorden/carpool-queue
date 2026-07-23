@@ -35,8 +35,9 @@ def client(db_engine):
     app.dependency_overrides.clear()
 
 
-def seed_queue(engine, names):
-    """Создаёт пользователей и ставит их в очередь в переданном порядке.
+def seed_queue(engine, names, queue_type="long"):
+    """Создаёт пользователей и ставит их в очередь заданного типа
+    (по умолчанию long) в переданном порядке.
 
     Возвращает список user_id в том же порядке.
     """
@@ -50,12 +51,31 @@ def seed_queue(engine, names):
             ids.append(user.id)
 
         for position, user_id in enumerate(ids):
-            session.add(QueuePosition(user_id=user_id, position=position))
+            session.add(
+                QueuePosition(user_id=user_id, queue_type=queue_type, position=position)
+            )
         session.commit()
 
     return ids
 
 
-def queue_order(client):
-    """Список user_id в текущем порядке очереди (по GET /queue)."""
-    return [entry["user_id"] for entry in client.get("/queue").json()]
+def add_to_queue(engine, user_ids, queue_type):
+    """Добавляет уже существующих пользователей в очередь заданного типа,
+    в переданном порядке — без создания новых User (в отличие от
+    seed_queue). Нужен для сценариев, где один и тот же состав людей
+    должен независимо состоять в обеих очередях.
+    """
+    with Session(engine) as session:
+        for position, user_id in enumerate(user_ids):
+            session.add(
+                QueuePosition(user_id=user_id, queue_type=queue_type, position=position)
+            )
+        session.commit()
+
+
+def queue_order(client, queue_type="long"):
+    """Список user_id в текущем порядке очереди заданного типа (по GET /queue)."""
+    return [
+        entry["user_id"]
+        for entry in client.get(f"/queue?queue_type={queue_type}").json()
+    ]

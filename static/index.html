@@ -24,9 +24,18 @@
     <main>
         <section id="queue-section">
             <h2>Очередь</h2>
-            <ol id="queue-list">
-                <li>Загрузка...</li>
-            </ol>
+            <div class="queue-group">
+                <h3>Дальние поездки</h3>
+                <ol id="queue-list-long">
+                    <li>Загрузка...</li>
+                </ol>
+            </div>
+            <div class="queue-group">
+                <h3>Короткие поездки</h3>
+                <ol id="queue-list-short">
+                    <li>Загрузка...</li>
+                </ol>
+            </div>
         </section>
 
         <section id="pending-section">
@@ -68,6 +77,18 @@
                         name="comment"
                         placeholder="Например: выезд утром, 2 пассажира"
                     >
+                </div>
+
+                <div class="order-type-field">
+                    <span class="order-type-label">Тип заказа:</span>
+                    <label class="radio-label">
+                        <input type="radio" name="queue_type" value="long" required>
+                        Дальний
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="queue_type" value="short" required>
+                        Короткий
+                    </label>
                 </div>
 
                 <button type="submit">Создать заказ</button>

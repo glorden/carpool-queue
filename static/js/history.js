@@ -7,6 +7,11 @@ const STATUS_LABELS = {
     cancelled: "Отменён",
 };
 
+const QUEUE_TYPE_LABELS = {
+    long: "Дальний",
+    short: "Короткий",
+};
+
 async function loadUsers() {
     const res = await fetch(`${API_BASE}/queue`);
     return await res.json();
@@ -14,8 +19,14 @@ async function loadUsers() {
 
 function populateUserFilter(users) {
     const select = document.getElementById("filter-user");
+    const seen = new Set();
 
     users.forEach((entry) => {
+        // /queue без queue_type отдаёт обе очереди — пользователь,
+        // состоящий в обеих, попал бы в фильтр дважды
+        if (seen.has(entry.user_id)) return;
+        seen.add(entry.user_id);
+
         const option = document.createElement("option");
         option.value = entry.user_id;
         option.textContent = entry.name;
@@ -30,11 +41,12 @@ function formatDate(value) {
     return d.toLocaleString("ru-RU");
 }
 
-async function loadOrders(status, userId) {
+async function loadOrders(status, userId, queueType) {
     const params = new URLSearchParams();
 
     if (status) params.set("status", status);
     if (userId) params.set("user_id", userId);
+    if (queueType) params.set("queue_type", queueType);
 
     const query = params.toString();
     const url = query ? `${API_BASE}/orders?${query}` : `${API_BASE}/orders`;
@@ -50,7 +62,7 @@ function renderOrders(orders, users) {
     if (orders.length === 0) {
         const tr = document.createElement("tr");
         tr.className = "empty-row";
-        tr.innerHTML = `<td colspan="8">Заказы не найдены</td>`;
+        tr.innerHTML = `<td colspan="9">Заказы не найдены</td>`;
         tbody.appendChild(tr);
         return;
     }
@@ -70,6 +82,7 @@ function renderOrders(orders, users) {
 
         const cells = [
             ["ID", order.id],
+            ["Тип", QUEUE_TYPE_LABELS[order.queue_type] || order.queue_type],
             ["Маршрут", order.route || "—"],
             ["Комментарий", order.comment || "—"],
             ["Статус", STATUS_LABELS[order.status] || order.status],
@@ -93,8 +106,9 @@ function renderOrders(orders, users) {
 async function applyFilters(users) {
     const status = document.getElementById("filter-status").value;
     const userId = document.getElementById("filter-user").value;
+    const queueType = document.getElementById("filter-queue-type").value;
 
-    const orders = await loadOrders(status, userId);
+    const orders = await loadOrders(status, userId, queueType);
 
     renderOrders(orders, users);
 }

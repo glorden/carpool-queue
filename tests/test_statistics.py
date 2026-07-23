@@ -11,19 +11,19 @@ def test_overall_counts(client, db_engine):
     a, b, _ = seed_queue(db_engine, ["A", "B", "C"])
 
     # pending — никому ещё не назначен
-    client.post("/orders", json={"route": "pending-1"})
+    client.post("/orders", json={"route": "pending-1", "queue_type": "long"})
 
     # assigned — активен, но ещё не завершён
-    order2 = client.post("/orders", json={"route": "assigned-1"}).json()
+    order2 = client.post("/orders", json={"route": "assigned-1", "queue_type": "long"}).json()
     client.post(f"/orders/{order2['id']}/respond", json={"user_id": a, "response": "accepted"})
 
     # completed
-    order3 = client.post("/orders", json={"route": "completed-1"}).json()
+    order3 = client.post("/orders", json={"route": "completed-1", "queue_type": "long"}).json()
     client.post(f"/orders/{order3['id']}/respond", json={"user_id": b, "response": "accepted"})
     client.post(f"/orders/{order3['id']}/complete")
 
     # cancelled прямо из pending
-    order4 = client.post("/orders", json={"route": "cancelled-1"}).json()
+    order4 = client.post("/orders", json={"route": "cancelled-1", "queue_type": "long"}).json()
     client.post(f"/orders/{order4['id']}/cancel")
 
     overall = client.get("/statistics/summary").json()["overall"]
@@ -39,12 +39,12 @@ def test_per_driver_counts_include_self_assign(client, db_engine):
     a, b, c = seed_queue(db_engine, ["A", "B", "C"])
 
     # A принимает и завершает обычным способом
-    order1 = client.post("/orders", json={"route": "one"}).json()
+    order1 = client.post("/orders", json={"route": "one", "queue_type": "long"}).json()
     client.post(f"/orders/{order1['id']}/respond", json={"user_id": a, "response": "accepted"})
     client.post(f"/orders/{order1['id']}/complete")
 
     # B самоназначается вне очереди и тоже завершает
-    order2 = client.post("/orders", json={"route": "two"}).json()
+    order2 = client.post("/orders", json={"route": "two", "queue_type": "long"}).json()
     client.post(f"/orders/{order2['id']}/self-assign", json={"user_id": b, "reason": "рядом"})
     client.post(f"/orders/{order2['id']}/complete")
 
@@ -58,7 +58,7 @@ def test_per_driver_counts_include_self_assign(client, db_engine):
 def test_cancelled_after_assignment_counted_in_received_and_cancelled(client, db_engine):
     a, _, _ = seed_queue(db_engine, ["A", "B", "C"])
 
-    order = client.post("/orders", json={"route": "test"}).json()
+    order = client.post("/orders", json={"route": "test", "queue_type": "long"}).json()
     client.post(f"/orders/{order['id']}/respond", json={"user_id": a, "response": "accepted"})
     client.post(f"/orders/{order['id']}/cancel")
 
@@ -75,10 +75,10 @@ def test_by_driver_sorted_by_received_descending(client, db_engine):
     a, b, c = seed_queue(db_engine, ["A", "B", "C"])
 
     for _ in range(2):
-        order = client.post("/orders", json={"route": "x"}).json()
+        order = client.post("/orders", json={"route": "x", "queue_type": "long"}).json()
         client.post(f"/orders/{order['id']}/self-assign", json={"user_id": c, "reason": "тест"})
 
-    order = client.post("/orders", json={"route": "y"}).json()
+    order = client.post("/orders", json={"route": "y", "queue_type": "long"}).json()
     client.post(f"/orders/{order['id']}/self-assign", json={"user_id": a, "reason": "тест"})
 
     received_order = [d["user_id"] for d in client.get("/statistics/summary").json()["by_driver"]]

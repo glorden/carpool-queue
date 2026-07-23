@@ -25,6 +25,13 @@
                 <option value="cancelled">Отменён</option>
             </select>
 
+            <label for="filter-queue-type">Тип:</label>
+            <select id="filter-queue-type">
+                <option value="">Все</option>
+                <option value="long">Дальний</option>
+                <option value="short">Короткий</option>
+            </select>
+
             <label for="filter-user">Исполнитель:</label>
             <select id="filter-user">
                 <option value="">Все</option>
@@ -39,6 +46,7 @@
                 <thead>
                     <tr>
                         <th>ID</th>
+                        <th>Тип</th>
                         <th>Маршрут</th>
                         <th>Комментарий</th>
                         <th>Статус</th>
@@ -50,7 +58,7 @@
                 </thead>
                 <tbody id="history-tbody">
                     <tr>
-                        <td colspan="8">Загрузка...</td>
+                        <td colspan="9">Загрузка...</td>
                     </tr>
                 </tbody>
             </table>

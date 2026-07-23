@@ -3,6 +3,8 @@ from enum import Enum
 
 from sqlmodel import SQLModel, Field
 
+from app.models.queue import QueueType
+
 
 class OrderStatus(str, Enum):
     pending = "pending"        # только создан, ещё никому не назначен
@@ -18,13 +20,14 @@ class OfferResponse(str, Enum):
 
 
 class Order(SQLModel, table=True):
-    """Заказ на межгороднюю поездку."""
+    """Заказ на поездку (дальнюю или короткую — см. QueueType)."""
 
     id: int | None = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     route: str | None = None
     comment: str | None = None
     status: OrderStatus = Field(default=OrderStatus.pending)
+    queue_type: QueueType
     assigned_to: int | None = Field(default=None, foreign_key="user.id")
     completed_at: datetime | None = None
     self_assign_reason: str | None = None

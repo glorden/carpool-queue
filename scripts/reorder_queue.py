@@ -1,11 +1,12 @@
-"""Переставляет очередь водителей в указанном порядке.
+"""Переставляет одну из очередей водителей в указанном порядке.
 
 Список username должен содержать ровно тех же людей, что сейчас состоят
-в очереди — без пропусков и без лишних, чтобы не потерять или не
-задвоить кого-то по ошибке.
+в указанной очереди — без пропусков и без лишних, чтобы не потерять или
+не задвоить кого-то по ошибке. Вторая очередь этим скриптом не
+затрагивается.
 
 Использование:
-    python -m scripts.reorder_queue username1 username2 username3 ...
+    python -m scripts.reorder_queue <long|short> username1 username2 ...
 """
 import sys
 
@@ -15,10 +16,16 @@ from app.database import engine
 from app.models.queue import QueuePosition
 from app.models.user import User
 
-usernames = sys.argv[1:]
+args = sys.argv[1:]
 
-if not usernames:
-    print("Использование: python -m scripts.reorder_queue username1 username2 ...")
+if len(args) < 2:
+    print("Использование: python -m scripts.reorder_queue <long|short> username1 username2 ...")
+    sys.exit(1)
+
+queue_type, *usernames = args
+
+if queue_type not in ("long", "short"):
+    print(f"Первым аргументом должен быть тип очереди: long или short (получено: {queue_type!r})")
     sys.exit(1)
 
 if len(usernames) != len(set(usernames)):
@@ -39,7 +46,9 @@ with Session(engine) as session:
         print(f"Пользователи не найдены: {', '.join(missing_usernames)}")
         sys.exit(1)
 
-    current_qps = session.exec(select(QueuePosition)).all()
+    current_qps = session.exec(
+        select(QueuePosition).where(QueuePosition.queue_type == queue_type)
+    ).all()
     qp_by_user_id = {qp.user_id: qp for qp in current_qps}
     current_user_ids = set(qp_by_user_id.keys())
     new_user_ids = {user.id for user in users_by_username.values()}
@@ -54,7 +63,7 @@ with Session(engine) as session:
                 for user in session.exec(select(User))
                 if user.id in missing_from_list
             ]
-            print(f"В списке не хватает тех, кто сейчас в очереди: {', '.join(names)}")
+            print(f"В списке не хватает тех, кто сейчас в очереди «{queue_type}»: {', '.join(names)}")
 
         if extra_in_list:
             names = [
@@ -62,7 +71,7 @@ with Session(engine) as session:
                 for user in users_by_username.values()
                 if user.id in extra_in_list
             ]
-            print(f"В списке есть те, кого сейчас нет в очереди: {', '.join(names)}")
+            print(f"В списке есть те, кого сейчас нет в очереди «{queue_type}»: {', '.join(names)}")
 
         sys.exit(1)
 
@@ -73,7 +82,7 @@ with Session(engine) as session:
 
     session.commit()
 
-    print("Новый порядок очереди:")
+    print(f"Новый порядок очереди «{queue_type}»:")
     for position, username in enumerate(usernames):
         user = users_by_username[username]
         print(f"  {position + 1}. {user.name} ({username})")

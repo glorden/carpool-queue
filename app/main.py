@@ -3,7 +3,7 @@ from fastapi import FastAPI, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from app.database import get_session
 from app.models.user import User
-from app.models.queue import QueuePosition
+from app.models.queue import QueuePosition, QueueType
 from app.models.order import Order, OrderOffer, OfferResponse, OrderStatus
 from app.models.price import PriceItem, PriceLogEntry
 from app.models.activity import ActivityLog
@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse
 class OrderCreate(BaseModel):
     route: str | None = None
     comment: str | None = None
+    queue_type: QueueType
 
 
 class OrderRespond(BaseModel):
@@ -85,16 +86,32 @@ def list_users(session: Session = Depends(get_session)):
 
 
 @app.get("/queue")
-def get_queue(session: Session = Depends(get_session)):
-    """Возвращает список пользователей в порядке очереди."""
-    statement = (
-        select(QueuePosition, User)
-        .join(User, QueuePosition.user_id == User.id)
-        .order_by(QueuePosition.position)
-    )
+def get_queue(
+    queue_type: QueueType | None = None,
+    session: Session = Depends(get_session),
+):
+    """Возвращает список пользователей в порядке очереди.
+
+    Без queue_type — позиции из обеих очередей сразу (пользователь,
+    состоящий в обеих, попадёт дважды, с полем queue_type в каждой
+    записи); используется страницами, которым нужен просто список
+    водителей, а не порядок конкретной очереди (история заказов,
+    журнал действий). С queue_type — порядок только этой очереди,
+    для отображения на дэшборде.
+    """
+    statement = select(QueuePosition, User).join(User, QueuePosition.user_id == User.id)
+    if queue_type is not None:
+        statement = statement.where(QueuePosition.queue_type == queue_type)
+    statement = statement.order_by(QueuePosition.queue_type, QueuePosition.position)
+
     results = session.exec(statement).all()
     return [
-        {"position": qp.position, "user_id": user.id, "name": user.name}
+        {
+            "position": qp.position,
+            "user_id": user.id,
+            "name": user.name,
+            "queue_type": qp.queue_type,
+        }
         for qp, user in results
     ]
 
@@ -102,6 +119,7 @@ def get_queue(session: Session = Depends(get_session)):
 def list_orders(
     status: OrderStatus | None = None,
     user_id: int | None = None,
+    queue_type: QueueType | None = None,
     limit: int = Query(default=100, le=500),
     session: Session = Depends(get_session),
 ):
@@ -109,6 +127,7 @@ def list_orders(
 
     - status: фильтр по статусу (pending/assigned/completed)
     - user_id: фильтр по исполнителю (assigned_to)
+    - queue_type: фильтр по типу очереди (long/short)
     - limit: максимум записей в ответе (по умолчанию 100, максимум 500)
     """
     statement = select(Order)
@@ -118,6 +137,9 @@ def list_orders(
 
     if user_id is not None:
         statement = statement.where(Order.assigned_to == user_id)
+
+    if queue_type is not None:
+        statement = statement.where(Order.queue_type == queue_type)
 
     statement = statement.order_by(Order.created_at.desc()).limit(limit)
 
@@ -158,6 +180,7 @@ def list_pending_orders(session: Session = Depends(get_session)):
                 "route": order.route,
                 "comment": order.comment,
                 "status": order.status,
+                "queue_type": order.queue_type,
                 "created_at": order.created_at,
                 "offered_to": offered_to,
             }
@@ -170,8 +193,13 @@ def create_order(
     order_in: OrderCreate,
     session: Session = Depends(get_session),
 ):
-    """Создаёт новый заказ и сразу предлагает его первому в очереди."""
-    order = Order(route=order_in.route, comment=order_in.comment)
+    """Создаёт новый заказ и сразу предлагает его первому в очереди
+    соответствующего типа."""
+    order = Order(
+        route=order_in.route,
+        comment=order_in.comment,
+        queue_type=order_in.queue_type,
+    )
     session.add(order)
     session.commit()
     session.refresh(order)
@@ -180,7 +208,9 @@ def create_order(
     session.refresh(order)
 
     first_in_queue = session.exec(
-        select(QueuePosition).order_by(QueuePosition.position)
+        select(QueuePosition)
+        .where(QueuePosition.queue_type == order.queue_type)
+        .order_by(QueuePosition.position)
     ).first()
 
     if first_in_queue is not None:
@@ -235,10 +265,14 @@ def respond_to_order(
         session.add(order)
 
         max_position = session.exec(
-            select(QueuePosition.position).order_by(QueuePosition.position.desc())
+            select(QueuePosition.position)
+            .where(QueuePosition.queue_type == order.queue_type)
+            .order_by(QueuePosition.position.desc())
         ).first()
         user_qp = session.exec(
-            select(QueuePosition).where(QueuePosition.user_id == respond_in.user_id)
+            select(QueuePosition)
+            .where(QueuePosition.user_id == respond_in.user_id)
+            .where(QueuePosition.queue_type == order.queue_type)
         ).first()
         user_qp.position = max_position + 1
         session.add(user_qp)
@@ -275,16 +309,21 @@ def respond_to_order(
         declining_user = session.get(User, respond_in.user_id)
 
         current_qp = session.exec(
-            select(QueuePosition).where(QueuePosition.user_id == respond_in.user_id)
+            select(QueuePosition)
+            .where(QueuePosition.user_id == respond_in.user_id)
+            .where(QueuePosition.queue_type == order.queue_type)
         ).first()
         next_qp = session.exec(
             select(QueuePosition)
             .where(QueuePosition.position > current_qp.position)
+            .where(QueuePosition.queue_type == order.queue_type)
             .order_by(QueuePosition.position)
         ).first()
         if next_qp is None:
             next_qp = session.exec(
-                select(QueuePosition).order_by(QueuePosition.position)
+                select(QueuePosition)
+                .where(QueuePosition.queue_type == order.queue_type)
+                .order_by(QueuePosition.position)
             ).first()
 
         new_offer = OrderOffer(order_id=order.id, user_id=next_qp.user_id)
@@ -351,7 +390,9 @@ def self_assign_order(
         raise HTTPException(status_code=400, detail="reason is required")
 
     user_qp = session.exec(
-        select(QueuePosition).where(QueuePosition.user_id == self_assign_in.user_id)
+        select(QueuePosition)
+        .where(QueuePosition.user_id == self_assign_in.user_id)
+        .where(QueuePosition.queue_type == order.queue_type)
     ).first()
     if user_qp is None:
         raise HTTPException(status_code=400, detail="User is not in the driver queue")
@@ -381,7 +422,9 @@ def self_assign_order(
     session.add(order)
 
     max_position = session.exec(
-        select(QueuePosition.position).order_by(QueuePosition.position.desc())
+        select(QueuePosition.position)
+        .where(QueuePosition.queue_type == order.queue_type)
+        .order_by(QueuePosition.position.desc())
     ).first()
     user_qp.position = max_position + 1
     session.add(user_qp)
@@ -465,12 +508,15 @@ def cancel_order(
 
     if order.status == OrderStatus.assigned and order.assigned_to is not None:
         user_qp = session.exec(
-            select(QueuePosition).where(QueuePosition.user_id == order.assigned_to)
+            select(QueuePosition)
+            .where(QueuePosition.user_id == order.assigned_to)
+            .where(QueuePosition.queue_type == order.queue_type)
         ).first()
         if user_qp is not None:
             others = session.exec(
                 select(QueuePosition)
                 .where(QueuePosition.user_id != order.assigned_to)
+                .where(QueuePosition.queue_type == order.queue_type)
                 .order_by(QueuePosition.position)
             ).all()
 
@@ -711,10 +757,11 @@ def get_statistics_summary(session: Session = Depends(get_session)):
             elif order.status == OrderStatus.cancelled:
                 cancelled_by_driver[order.assigned_to] = cancelled_by_driver.get(order.assigned_to, 0) + 1
 
+    # distinct() — водитель, состоящий в обеих очередях (long и short),
+    # иначе попал бы в разбивку дважды с одинаковыми числами (числа
+    # считаются от Order.assigned_to, а не от QueuePosition)
     queue_users = session.exec(
-        select(QueuePosition, User)
-        .join(User, QueuePosition.user_id == User.id)
-        .order_by(QueuePosition.position)
+        select(User).join(QueuePosition, QueuePosition.user_id == User.id).distinct()
     ).all()
 
     by_driver = [
@@ -725,7 +772,7 @@ def get_statistics_summary(session: Session = Depends(get_session)):
             "completed": completed_by_driver.get(user.id, 0),
             "cancelled": cancelled_by_driver.get(user.id, 0),
         }
-        for _, user in queue_users
+        for user in queue_users
     ]
     by_driver.sort(key=lambda d: d["received"], reverse=True)
 
