@@ -170,6 +170,15 @@ cd /home/deploy/carpool-queue
 .venv/bin/python -m scripts.add_user "Имя Фамилия" username --no-queue
 ```
 
+## Перестановка порядка в очереди на проде
+
+Для редкой ручной правки (список — ровно те же username, что сейчас
+в очереди, в нужном порядке):
+```bash
+cd /home/deploy/carpool-queue
+.venv/bin/python -m scripts.reorder_queue username1 username2 username3
+```
+
 ## Обновление прод-сервера при новых коммитах
 
 Под пользователем `deploy`:
