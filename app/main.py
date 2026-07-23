@@ -395,7 +395,7 @@ def self_assign_order(
     _log_activity(
         session,
         "order_self_assigned",
-        f"{driver_name} самоназначился на заказ №{order.id} вне очереди. Причина: {reason}",
+        f"Самоназначение вне очереди на заказ №{order.id}: {driver_name}. Причина: {reason}",
         user_id=self_assign_in.user_id,
         order_id=order.id,
     )

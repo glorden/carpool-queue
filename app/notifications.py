@@ -80,6 +80,6 @@ def notify_self_assigned(
     """Шлёт сообщение в общую беседу VK о самоназначении на заказ вне очереди."""
     driver_mention = _driver_mention(driver_name, driver_vk_id)
     _send(
-        f"{driver_mention} самоназначился на заказ №{order.id} вне очереди.\nПричина: {reason}",
+        f"Самоназначение вне очереди на заказ №{order.id}: {driver_mention}.\nПричина: {reason}",
         order.id,
     )
