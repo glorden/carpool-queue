@@ -38,39 +38,53 @@
 Подробности и обоснование этих решений — в [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ## Структура проекта
+
+```text
 carpool-queue/
 ├── app/
-│   ├── main.py            # точка входа FastAPI, регистрация роутов
-│   ├── config.py           # настройки приложения
-│   ├── database.py         # подключение к БД (SQLite)
+│   ├── main.py              # точка входа FastAPI, регистрация роутов
+│   ├── config.py             # настройки приложения
+│   ├── database.py           # подключение к БД (SQLite)
+│   ├── notifications.py      # уведомление в VK о предложенном заказе
 │   └── models/
-│       ├── user.py         # модель User
-│       ├── queue.py         # модель QueuePosition
-│       ├── order.py         # модели Order и OrderOffer
-│       ├── price.py         # модели PriceItem и PriceLogEntry
-│       └── activity.py      # модель ActivityLog (журнал действий)
-├── alembic/                # миграции БД
+│       ├── user.py           # модель User
+│       ├── queue.py          # модель QueuePosition, enum QueueType
+│       ├── order.py          # модели Order и OrderOffer
+│       ├── price.py          # модели PriceItem и PriceLogEntry
+│       └── activity.py       # модель ActivityLog (журнал действий)
+├── alembic/                  # миграции БД
 │   └── versions/
 ├── static/
-│   ├── index.html           # дэшборд (очередь + создание заказа)
-│   ├── history.html         # история заказов
-│   ├── activity.html        # журнал действий
-│   ├── price.html           # прайс-лист (редактируемый)
+│   ├── index.html             # дэшборд (обе очереди + создание заказа)
+│   ├── history.html           # история заказов
+│   ├── activity.html          # журнал действий
+│   ├── price.html             # прайс-лист (редактируемый)
+│   ├── statistics.html        # статистика
 │   ├── css/style.css
 │   └── js/
-│       ├── nav.js           # общая навигация на всех страницах
+│       ├── nav.js             # общая навигация на всех страницах
 │       ├── dashboard.js
 │       ├── history.js
 │       ├── activity.js
-│       └── price.js
+│       ├── price.js
+│       └── statistics.js
 ├── scripts/
-│   └── seed.py              # наполнение БД тестовыми данными
+│   ├── seed.py                # наполнение БД тестовыми данными
+│   ├── add_user.py            # добавление реального пользователя в очередь(и)
+│   ├── reorder_queue.py       # ручная перестановка порядка в одной из очередей
+│   └── backup_db.sh           # ежедневный бэкап БД на проде (см. DEPLOY.md)
+├── tests/                     # автотесты (pytest)
 ├── requirements.txt
 ├── alembic.ini
 ├── .env.example
-├── PROGRESS.md              # журнал выполнения этапов
-├── ARCHITECTURE.md          # архитектурные решения и технический долг
+├── PROGRESS.md                # журнал выполнения этапов
+├── ARCHITECTURE.md            # архитектурные решения и технический долг
+├── DEPLOY.md                  # установка и запуск на VPS
+├── CHANGELOG.md               # журнал изменений (Keep a Changelog)
+├── STYLEGUIDE.md               # соглашения по стилю кода
 └── README.md
+```
+
 ## Установка и запуск
 
 ### Первоначальная настройка (один раз)
@@ -211,3 +225,5 @@ alembic upgrade head
 - [PROGRESS.md](./PROGRESS.md) — журнал выполнения этапов
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — архитектурные решения, логика очереди, технический долг, формат работы
 - [DEPLOY.md](./DEPLOY.md) — установка и запуск на VPS (Ubuntu + Caddy + systemd + HTTPS)
+- [CHANGELOG.md](./CHANGELOG.md) — журнал изменений (формат Keep a Changelog)
+- [STYLEGUIDE.md](./STYLEGUIDE.md) — соглашения по стилю кода
