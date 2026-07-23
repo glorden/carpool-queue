@@ -445,3 +445,91 @@ header {
     border-bottom: 1px solid #f0f0f0;
     color: #333;
 }
+
+#overview-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 24px 0;
+    font-size: 14px;
+}
+
+#overview-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+    color: #333;
+}
+
+#driver-stats-table {
+    width: 100%;
+    min-width: 480px;
+    border-collapse: collapse;
+}
+
+@media (max-width: 640px) {
+    #driver-stats-table {
+        min-width: 0;
+    }
+
+    #driver-stats-table thead {
+        display: none;
+    }
+
+    #driver-stats-table, #driver-stats-table tbody, #driver-stats-table tr, #driver-stats-table td {
+        display: block;
+        width: 100%;
+    }
+
+    #driver-stats-table tr {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 4px 10px;
+        margin-bottom: 10px;
+    }
+
+    #driver-stats-table tr.empty-row {
+        border: none;
+        padding: 0;
+    }
+
+    #driver-stats-table td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 0;
+        border-bottom: 1px solid #f0f0f0;
+        text-align: right;
+    }
+
+    #driver-stats-table td:last-child {
+        border-bottom: none;
+    }
+
+    #driver-stats-table td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        text-align: left;
+        color: #555;
+    }
+
+    #driver-stats-table tr.empty-row td {
+        justify-content: center;
+        text-align: center;
+    }
+
+    #driver-stats-table tr.empty-row td::before {
+        content: none;
+    }
+}
+
+#driver-stats-table th,
+#driver-stats-table td {
+    text-align: left;
+    padding: 6px 10px;
+    border-bottom: 1px solid #eee;
+    font-size: 14px;
+}
+
+#driver-stats-table th {
+    border-bottom: 2px solid #ccc;
+}

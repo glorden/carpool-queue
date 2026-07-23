@@ -3,6 +3,7 @@ const SITE_PAGES = [
     { href: "/static/price.html", label: "Прайс" },
     { href: "/static/history.html", label: "История заказов" },
     { href: "/static/activity.html", label: "Журнал действий" },
+    { href: "/static/statistics.html", label: "Статистика" },
 ];
 
 function renderSiteNav() {

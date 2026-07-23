@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Carpool Queue — статистика</title>
+    <link rel="icon" type="image/png" href="/static/favicon-32x32.png">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>Статистика</h1>
+    </header>
+
+    <nav id="site-nav" class="site-nav"></nav>
+
+    <main>
+        <section id="overview-section">
+            <h2>Общая статистика</h2>
+            <ul id="overview-list">
+                <li>Загрузка...</li>
+            </ul>
+        </section>
+
+        <section id="driver-stats-section">
+            <h2>Статистика по водителям</h2>
+            <div class="table-scroll">
+            <table id="driver-stats-table">
+                <thead>
+                    <tr>
+                        <th>Водитель</th>
+                        <th>Получено</th>
+                        <th>Завершено</th>
+                        <th>Отменено</th>
+                    </tr>
+                </thead>
+                <tbody id="driver-stats-tbody">
+                    <tr>
+                        <td colspan="4">Загрузка...</td>
+                    </tr>
+                </tbody>
+            </table>
+            </div>
+        </section>
+    </main>
+
+    <script src="/static/js/nav.js"></script>
+    <script src="/static/js/statistics.js"></script>
+</body>
+</html>

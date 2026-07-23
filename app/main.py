@@ -684,3 +684,49 @@ def list_activity(
         )
 
     return result
+
+
+@app.get("/statistics/summary")
+def get_statistics_summary(session: Session = Depends(get_session)):
+    """Общая статистика по заказам и по водителям (см. ARCHITECTURE.md)."""
+    orders = session.exec(select(Order)).all()
+
+    overall = {"total": len(orders), "completed": 0, "active": 0, "cancelled": 0}
+    received_by_driver: dict[int, int] = {}
+    completed_by_driver: dict[int, int] = {}
+    cancelled_by_driver: dict[int, int] = {}
+
+    for order in orders:
+        if order.status == OrderStatus.completed:
+            overall["completed"] += 1
+        elif order.status == OrderStatus.cancelled:
+            overall["cancelled"] += 1
+        else:  # pending или assigned
+            overall["active"] += 1
+
+        if order.assigned_to is not None:
+            received_by_driver[order.assigned_to] = received_by_driver.get(order.assigned_to, 0) + 1
+            if order.status == OrderStatus.completed:
+                completed_by_driver[order.assigned_to] = completed_by_driver.get(order.assigned_to, 0) + 1
+            elif order.status == OrderStatus.cancelled:
+                cancelled_by_driver[order.assigned_to] = cancelled_by_driver.get(order.assigned_to, 0) + 1
+
+    queue_users = session.exec(
+        select(QueuePosition, User)
+        .join(User, QueuePosition.user_id == User.id)
+        .order_by(QueuePosition.position)
+    ).all()
+
+    by_driver = [
+        {
+            "user_id": user.id,
+            "name": user.name,
+            "received": received_by_driver.get(user.id, 0),
+            "completed": completed_by_driver.get(user.id, 0),
+            "cancelled": cancelled_by_driver.get(user.id, 0),
+        }
+        for _, user in queue_users
+    ]
+    by_driver.sort(key=lambda d: d["received"], reverse=True)
+
+    return {"overall": overall, "by_driver": by_driver}
