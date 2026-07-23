@@ -113,6 +113,15 @@ function renderPendingOrders(orders) {
 
             actions.appendChild(acceptBtn);
             actions.appendChild(declineBtn);
+        } else {
+            const selfAssignBtn = document.createElement("button");
+            selfAssignBtn.textContent = "Самоназначиться";
+            selfAssignBtn.className = "btn-self-assign";
+            selfAssignBtn.addEventListener("click", () =>
+                selfAssignOrder(order.id)
+            );
+
+            actions.appendChild(selfAssignBtn);
         }
 
         const cancelBtn = document.createElement("button");
@@ -177,6 +186,50 @@ async function respondToOrder(orderId, response) {
         if (!res.ok) {
             const err = await res.json();
             throw new Error(err.detail || "Ошибка при ответе на заказ");
+        }
+
+        await refreshPending();
+        await refreshMyOrders();
+
+        currentQueue = await loadQueue();
+        renderQueue(currentQueue);
+    } catch (e) {
+        alert(e.message);
+    }
+}
+
+async function selfAssignOrder(orderId) {
+    const currentUserId = localStorage.getItem("carpool_user_id");
+
+    if (!currentUserId) {
+        alert("Сначала выберите себя в верхней части страницы.");
+        return;
+    }
+
+    const reason = prompt("Укажите причину самоназначения:");
+    if (reason === null) {
+        return;
+    }
+
+    const trimmedReason = reason.trim();
+    if (!trimmedReason) {
+        alert("Причина обязательна для самоназначения.");
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/orders/${orderId}/self-assign`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                user_id: Number(currentUserId),
+                reason: trimmedReason,
+            }),
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || "Ошибка самоназначения");
         }
 
         await refreshPending();

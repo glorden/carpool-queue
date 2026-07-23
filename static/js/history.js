@@ -50,7 +50,7 @@ function renderOrders(orders, users) {
     if (orders.length === 0) {
         const tr = document.createElement("tr");
         tr.className = "empty-row";
-        tr.innerHTML = `<td colspan="7">Заказы не найдены</td>`;
+        tr.innerHTML = `<td colspan="8">Заказы не найдены</td>`;
         tbody.appendChild(tr);
         return;
     }
@@ -76,6 +76,7 @@ function renderOrders(orders, users) {
             ["Водитель", driverName],
             ["Создан", formatDate(order.created_at)],
             ["Завершён", formatDate(order.completed_at)],
+            ["Причина самоназначения", order.self_assign_reason || "—"],
         ];
 
         cells.forEach(([label, value]) => {

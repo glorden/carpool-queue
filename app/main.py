@@ -7,7 +7,7 @@ from app.models.queue import QueuePosition
 from app.models.order import Order, OrderOffer, OfferResponse, OrderStatus
 from app.models.price import PriceItem, PriceLogEntry
 from app.models.activity import ActivityLog
-from app.notifications import notify_accepted, notify_offer
+from app.notifications import notify_accepted, notify_offer, notify_self_assigned
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -21,6 +21,11 @@ class OrderCreate(BaseModel):
 class OrderRespond(BaseModel):
     user_id: int
     response: str  # "accepted" или "declined"
+
+
+class OrderSelfAssign(BaseModel):
+    user_id: int
+    reason: str
 
 
 class PriceItemCreate(BaseModel):
@@ -319,6 +324,91 @@ def respond_to_order(
         raise HTTPException(
             status_code=400, detail="response must be 'accepted' or 'declined'"
         )
+
+
+@app.post("/orders/{order_id}/self-assign", response_model=Order)
+def self_assign_order(
+    order_id: int,
+    self_assign_in: OrderSelfAssign,
+    session: Session = Depends(get_session),
+):
+    """Самоназначение на заказ вне очереди: водитель указывает причину
+    (например, уже находится в городе подачи), сразу становится
+    исполнителем и перемещается в конец очереди — так же, как при
+    обычном принятии (`respond_to_order`, ветка `accepted`)."""
+    order = session.get(Order, order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    if order.status != OrderStatus.pending:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Order must be 'pending' to self-assign, current status: {order.status.value}",
+        )
+
+    reason = self_assign_in.reason.strip()
+    if not reason:
+        raise HTTPException(status_code=400, detail="reason is required")
+
+    user_qp = session.exec(
+        select(QueuePosition).where(QueuePosition.user_id == self_assign_in.user_id)
+    ).first()
+    if user_qp is None:
+        raise HTTPException(status_code=400, detail="User is not in the driver queue")
+
+    pending_offer = session.exec(
+        select(OrderOffer)
+        .where(OrderOffer.order_id == order_id)
+        .where(OrderOffer.response == OfferResponse.pending)
+        .order_by(OrderOffer.offered_at.desc())
+    ).first()
+    if pending_offer is not None:
+        pending_offer.response = OfferResponse.declined
+        pending_offer.responded_at = datetime.utcnow()
+        session.add(pending_offer)
+
+    offer = OrderOffer(
+        order_id=order.id,
+        user_id=self_assign_in.user_id,
+        response=OfferResponse.accepted,
+        responded_at=datetime.utcnow(),
+    )
+    session.add(offer)
+
+    order.status = OrderStatus.assigned
+    order.assigned_to = self_assign_in.user_id
+    order.self_assign_reason = reason
+    session.add(order)
+
+    max_position = session.exec(
+        select(QueuePosition.position).order_by(QueuePosition.position.desc())
+    ).first()
+    user_qp.position = max_position + 1
+    session.add(user_qp)
+
+    session.commit()
+    session.refresh(order)
+
+    driver = session.get(User, self_assign_in.user_id)
+    driver_name = driver.name if driver else "?"
+    notify_self_assigned(order, driver_name, reason, driver.vk_id if driver else None)
+    _log_activity(
+        session,
+        "order_self_assigned",
+        f"{driver_name} самоназначился на заказ №{order.id} вне очереди. Причина: {reason}",
+        user_id=self_assign_in.user_id,
+        order_id=order.id,
+    )
+    _log_activity(
+        session,
+        "queue_changed",
+        f"{driver_name} перемещён в конец очереди",
+        user_id=self_assign_in.user_id,
+        order_id=order.id,
+    )
+    session.refresh(order)
+
+    return order
 
 
 @app.post("/orders/{order_id}/complete", response_model=Order)

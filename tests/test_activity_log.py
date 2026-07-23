@@ -41,6 +41,26 @@ def test_cancel_assigned_order_logs_queue_change_and_cancellation(client, db_eng
     assert types[0] == "order_cancelled"
 
 
+def test_self_assign_logs_reason_and_queue_change(client, db_engine):
+    a, b, _ = seed_queue(db_engine, ["A", "B", "C"])
+
+    order_id = client.post("/orders", json={"route": "test"}).json()["id"]
+    client.post(
+        f"/orders/{order_id}/self-assign",
+        json={"user_id": b, "reason": "уже в городе подачи"},
+    )
+
+    types = event_types(client, order_id=order_id)
+    assert types[0] == "queue_changed"
+    assert types[1] == "order_self_assigned"
+
+    self_assign_entry = client.get(
+        "/activity", params={"order_id": order_id, "event_type": "order_self_assigned"}
+    ).json()[0]
+    assert "уже в городе подачи" in self_assign_entry["message"]
+    assert self_assign_entry["user_id"] == b
+
+
 def test_activity_filters_by_event_type_and_user(client, db_engine):
     a, _, _ = seed_queue(db_engine, ["A", "B", "C"])
 

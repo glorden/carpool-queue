@@ -27,6 +27,7 @@ class Order(SQLModel, table=True):
     status: OrderStatus = Field(default=OrderStatus.pending)
     assigned_to: int | None = Field(default=None, foreign_key="user.id")
     completed_at: datetime | None = None
+    self_assign_reason: str | None = None
 
 
 class OrderOffer(SQLModel, table=True):

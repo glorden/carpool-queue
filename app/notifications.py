@@ -72,3 +72,14 @@ def notify_accepted(order, driver_name: str, driver_vk_id: int | None = None) ->
     """Шлёт сообщение в общую беседу VK о том, что заказ принят конкретным водителем."""
     driver_mention = _driver_mention(driver_name, driver_vk_id)
     _send(f"{driver_mention} взял заказ №{order.id}.", order.id)
+
+
+def notify_self_assigned(
+    order, driver_name: str, reason: str, driver_vk_id: int | None = None
+) -> None:
+    """Шлёт сообщение в общую беседу VK о самоназначении на заказ вне очереди."""
+    driver_mention = _driver_mention(driver_name, driver_vk_id)
+    _send(
+        f"{driver_mention} самоназначился на заказ №{order.id} вне очереди.\nПричина: {reason}",
+        order.id,
+    )

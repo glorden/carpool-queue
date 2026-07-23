@@ -147,6 +147,11 @@ header {
     color: #555;
 }
 
+.order-actions .btn-self-assign {
+    background: #fdf0d5;
+    border: 1px solid #c90;
+}
+
 #filters-section {
     display: flex;
     flex-wrap: wrap;
