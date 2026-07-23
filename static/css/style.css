@@ -56,8 +56,22 @@ header {
     padding-left: 20px;
 }
 
+.queue-columns {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 8px;
+}
+
 .queue-group {
-    margin-bottom: 16px;
+    flex: 1;
+    min-width: 0;
+}
+
+@media (max-width: 640px) {
+    .queue-columns {
+        flex-direction: column;
+        gap: 16px;
+    }
 }
 
 .queue-group h3 {
@@ -111,7 +125,7 @@ header {
     width: 110px;
 }
 
-#create-order-section input {
+#create-order-section input[type="text"] {
     padding: 8px;
     width: 100%;
     max-width: 320px;
