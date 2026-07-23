@@ -6,6 +6,7 @@ from app.models.user import User
 from app.models.queue import QueuePosition
 from app.models.order import Order, OrderOffer, OfferResponse, OrderStatus
 from app.models.price import PriceItem, PriceLogEntry
+from app.models.activity import ActivityLog
 from app.notifications import notify_accepted, notify_offer
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
@@ -38,6 +39,24 @@ class PriceItemUpdate(BaseModel):
 
 def _price_snapshot(item: PriceItem) -> str:
     return f"{item.category} / {item.name} / {item.price_text}"
+
+
+def _log_activity(
+    session: Session,
+    event_type: str,
+    message: str,
+    user_id: int | None = None,
+    order_id: int | None = None,
+) -> None:
+    """Пишет запись в журнал действий (см. ARCHITECTURE.md, «Журнал действий»)."""
+    entry = ActivityLog(
+        event_type=event_type,
+        message=message,
+        user_id=user_id,
+        order_id=order_id,
+    )
+    session.add(entry)
+    session.commit()
 
 
 app = FastAPI(title="Carpool Queue")
@@ -152,6 +171,9 @@ def create_order(
     session.commit()
     session.refresh(order)
 
+    _log_activity(session, "order_created", f"Создан заказ №{order.id}", order_id=order.id)
+    session.refresh(order)
+
     first_in_queue = session.exec(
         select(QueuePosition).order_by(QueuePosition.position)
     ).first()
@@ -163,7 +185,16 @@ def create_order(
         session.refresh(order)
 
         driver = session.get(User, first_in_queue.user_id)
-        notify_offer(order, driver.name if driver else "?", driver.vk_id if driver else None)
+        driver_name = driver.name if driver else "?"
+        notify_offer(order, driver_name, driver.vk_id if driver else None)
+        _log_activity(
+            session,
+            "order_offered",
+            f"Заказ №{order.id} предложен {driver_name}",
+            user_id=first_in_queue.user_id,
+            order_id=order.id,
+        )
+        session.refresh(order)
 
     return order
 
@@ -211,7 +242,23 @@ def respond_to_order(
         session.refresh(order)
 
         driver = session.get(User, respond_in.user_id)
-        notify_accepted(order, driver.name if driver else "?", driver.vk_id if driver else None)
+        driver_name = driver.name if driver else "?"
+        notify_accepted(order, driver_name, driver.vk_id if driver else None)
+        _log_activity(
+            session,
+            "order_accepted",
+            f"{driver_name} принял заказ №{order.id}",
+            user_id=respond_in.user_id,
+            order_id=order.id,
+        )
+        _log_activity(
+            session,
+            "queue_changed",
+            f"{driver_name} перемещён в конец очереди",
+            user_id=respond_in.user_id,
+            order_id=order.id,
+        )
+        session.refresh(order)
 
         return order
 
@@ -241,13 +288,30 @@ def respond_to_order(
         session.commit()
         session.refresh(order)
 
+        _log_activity(
+            session,
+            "order_declined",
+            f"{declining_user.name if declining_user else '?'} отказался от заказа №{order.id}",
+            user_id=respond_in.user_id,
+            order_id=order.id,
+        )
+
         driver = session.get(User, next_qp.user_id)
+        driver_name = driver.name if driver else "?"
         notify_offer(
             order,
-            driver.name if driver else "?",
+            driver_name,
             driver.vk_id if driver else None,
             declined_by=declining_user.name if declining_user else None,
         )
+        _log_activity(
+            session,
+            "order_offered",
+            f"Заказ №{order.id} предложен {driver_name}",
+            user_id=next_qp.user_id,
+            order_id=order.id,
+        )
+        session.refresh(order)
 
         return order
 
@@ -278,6 +342,17 @@ def complete_order(
     session.add(order)
     session.commit()
     session.refresh(order)
+
+    driver = session.get(User, order.assigned_to) if order.assigned_to else None
+    _log_activity(
+        session,
+        "order_completed",
+        f"{driver.name if driver else '?'} завершил заказ №{order.id}",
+        user_id=order.assigned_to,
+        order_id=order.id,
+    )
+    session.refresh(order)
+
     return order
 
 
@@ -317,10 +392,29 @@ def cancel_order(
                 qp.position = position
                 session.add(qp)
 
+            driver = session.get(User, order.assigned_to)
+            _log_activity(
+                session,
+                "queue_changed",
+                f"{driver.name if driver else '?'} возвращён в начало очереди",
+                user_id=order.assigned_to,
+                order_id=order.id,
+            )
+
     order.status = OrderStatus.cancelled
     session.add(order)
     session.commit()
     session.refresh(order)
+
+    _log_activity(
+        session,
+        "order_cancelled",
+        f"Заказ №{order.id} отменён",
+        user_id=order.assigned_to,
+        order_id=order.id,
+    )
+    session.refresh(order)
+
     return order
 
 
@@ -355,6 +449,7 @@ def create_price_item(
     )
     session.add(log_entry)
     session.commit()
+    session.refresh(item)
 
     return item
 
@@ -392,6 +487,7 @@ def update_price_item(
     )
     session.add(log_entry)
     session.commit()
+    session.refresh(item)
 
     return item
 
@@ -451,6 +547,49 @@ def list_price_log(
                 "item_name": entry.item_name,
                 "old_value": entry.old_value,
                 "new_value": entry.new_value,
+            }
+        )
+
+    return result
+
+
+@app.get("/activity")
+def list_activity(
+    user_id: int | None = None,
+    order_id: int | None = None,
+    event_type: str | None = None,
+    limit: int = Query(default=100, le=500),
+    session: Session = Depends(get_session),
+):
+    """Возвращает журнал действий, новые сверху, с опциональной фильтрацией
+    по user_id/order_id/event_type. Отдельная сущность от истории заказов
+    (см. ARCHITECTURE.md)."""
+    statement = select(ActivityLog)
+
+    if user_id is not None:
+        statement = statement.where(ActivityLog.user_id == user_id)
+
+    if order_id is not None:
+        statement = statement.where(ActivityLog.order_id == order_id)
+
+    if event_type is not None:
+        statement = statement.where(ActivityLog.event_type == event_type)
+
+    statement = statement.order_by(ActivityLog.created_at.desc()).limit(limit)
+    entries = session.exec(statement).all()
+
+    result = []
+    for entry in entries:
+        user = session.get(User, entry.user_id) if entry.user_id else None
+        result.append(
+            {
+                "id": entry.id,
+                "created_at": entry.created_at,
+                "user_id": entry.user_id,
+                "user_name": user.name if user else None,
+                "order_id": entry.order_id,
+                "event_type": entry.event_type,
+                "message": entry.message,
             }
         )
 

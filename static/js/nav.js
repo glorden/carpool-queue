@@ -1,6 +1,7 @@
 const SITE_PAGES = [
     { href: "/", label: "Главная" },
     { href: "/static/history.html", label: "История заказов" },
+    { href: "/static/activity.html", label: "Журнал действий" },
     { href: "/static/price.html", label: "Прайс" },
 ];
 

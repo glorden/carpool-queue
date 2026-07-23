@@ -277,3 +277,42 @@
 - Ничего не реализовано — только зафиксировано правило на будущее:
   новая логика сложнее пары строк сразу пишется как router+service,
   а не переносится задним числом
+
+## ✅ Шаг 19: журнал действий — GET /activity — завершён
+- По GitHub issue: отдельная сущность `ActivityLog` (`app/models/activity.py`)
+  — `user_id`/`order_id` nullable, `event_type`, `message`, не заменяет
+  историю заказов (`Order`), а дополняет её событиями по ходу жизни
+  заказа. Миграция `8f2a1c9d4b3e`
+- Событие пишется в `create_order`, `respond_to_order` (оба ветвления),
+  `complete_order`, `cancel_order`: `order_created`, `order_offered`,
+  `order_accepted`, `order_declined`, `order_completed`, `order_cancelled`,
+  `queue_changed`. `user_id` не всегда известен (у `create`/`complete`/
+  `cancel` нет тела запроса с исполнителем — см. identity-долг в
+  ARCHITECTURE.md), тогда пишется `None`
+- `GET /activity` — фильтры `user_id`/`order_id`/`event_type`, `limit`
+  (default=100, max=500), новые сверху — по образцу `GET /price/log`
+- Страница «Журнал действий» (`static/activity.html` + `activity.js`),
+  добавлена в `nav.js`
+- **Побочный баг, найденный и исправленный по пути:** `_log_activity`
+  коммитит сессию, что инвалидирует (`expire`) уже загруженный объект
+  `order`/`item` в SQLAlchemy; при возврате такого объекта как
+  `response_model` FastAPI сериализовал его в пустой `{}` без ошибки
+  (Pydantic v2 берёт значения из `__dict__` инстанса, а `expire` их
+  оттуда убирает — lazy-reload не срабатывает на этом пути). Тот же
+  баг уже существовал в `POST/PUT /price` (log-entry коммитится после
+  `refresh(item)` и не рефрешится назад) — просто был незаметен, т.к.
+  фронтенд не читает поля из ответа `POST/PUT`, а после `POST /orders`
+  дэшборд показывает `order.id` в статусе, и `id` стал `undefined`.
+  Исправлено добавлением `session.refresh(order)`/`session.refresh(item)`
+  после каждого коммита лога, перед `return`
+- Тесты: `tests/test_activity_log.py` — полный жизненный цикл заказа
+  пишет ожидаемую последовательность событий, отмена назначенного
+  заказа пишет `queue_changed`+`order_cancelled`, фильтры по
+  `event_type`/`user_id` работают. Все 6 тестов (3 старых + 3 новых)
+  проходят
+- Миграция проверена на копии `carpool.db` в scratchpad: upgrade/downgrade/
+  upgrade — чисто, без ошибок; применена на локальной dev-БД
+- Живая проверка в браузере (dev-сервер): создание заказа → дэшборд
+  корректно показывает `Заказ №N создан` (баг с `undefined` исчез),
+  на странице «Журнал действий» видны все события в правильном порядке
+  и с фильтрами; тестовый заказ создан и сразу отменён для очистки

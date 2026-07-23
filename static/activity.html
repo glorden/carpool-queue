@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Carpool Queue — журнал действий</title>
+    <link rel="icon" type="image/png" href="/static/favicon-32x32.png">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>Журнал действий</h1>
+    </header>
+
+    <nav id="site-nav" class="site-nav"></nav>
+
+    <main>
+        <section id="filters-section">
+            <label for="filter-user">Участник:</label>
+            <select id="filter-user">
+                <option value="">Все</option>
+            </select>
+
+            <label for="filter-event-type">Событие:</label>
+            <select id="filter-event-type">
+                <option value="">Все</option>
+                <option value="order_created">Создание заказа</option>
+                <option value="order_offered">Предложение заказа</option>
+                <option value="order_accepted">Принятие заказа</option>
+                <option value="order_declined">Отказ от заказа</option>
+                <option value="order_completed">Завершение заказа</option>
+                <option value="order_cancelled">Отмена заказа</option>
+                <option value="queue_changed">Изменение очереди</option>
+            </select>
+
+            <button id="apply-filters">Применить</button>
+        </section>
+
+        <section id="activity-section">
+            <ul id="activity-list" class="activity-list">
+                <li>Загрузка...</li>
+            </ul>
+        </section>
+    </main>
+
+    <script src="/static/js/nav.js"></script>
+    <script src="/static/js/activity.js"></script>
+</body>
+</html>
