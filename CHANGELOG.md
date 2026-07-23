@@ -5,6 +5,9 @@
 
 ## [Unreleased]
 
+### Изменено
+- Прод перенесён на новый VPS (тот же домен `zakaz.glorden.ru`), старый сервер выведен из эксплуатации (см. PROGRESS.md, Шаг 24)
+
 ### Планируется
 - Решение по identity-проверкам в `/respond` и `/complete` (см. ARCHITECTURE.md)
 - Курс на будущее: разделение `routers`/`services` при росте `main.py` (см. ARCHITECTURE.md)
