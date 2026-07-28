@@ -17,6 +17,11 @@ const DELETE_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentCol
 
 let currentUser = null;
 
+function updateAuthGate() {
+    document.getElementById("auth-gated").hidden = !currentUser;
+    document.getElementById("login-prompt").hidden = !!currentUser;
+}
+
 function requireUser() {
     if (!currentUser) {
         alert("Сначала войдите через VK");
@@ -336,6 +341,9 @@ function initPriceSearch() {
 
 async function init() {
     currentUser = await window.sessionReady;
+    updateAuthGate();
+    if (!currentUser) return;
+
     initAddForms();
     initPriceSearch();
     await refreshAll();

@@ -646,3 +646,49 @@
 - Документация: README.md (таблица API, контракты без `user_id`,
   раздел «Известные ограничения» убран — долг закрыт), CHANGELOG.md,
   ARCHITECTURE.md («Технический долг» переписан на факт, не план)
+
+## ✅ Шаг 27: сайт закрыт под VK ID целиком, Basic Auth убран — завершён
+- Продолжение Шага 26: тот закрыл identity-проверки только на
+  мутирующих эндпоинтах, GET-списки (`/users`, `/queue`, `/orders`,
+  `/orders/pending`, `/price`, `/price/log`, `/activity`,
+  `/statistics/summary`) держались только на внешнем Caddy Basic Auth.
+  Здесь — реальная сессия на всех восьми плюс снятие самого Caddy-пароля
+- `Depends(get_current_user_required)` на всех восьми, тем же паттерном,
+  что уже был на мутирующих эндпоинтах — без нового механизма. Решение
+  в пользу явного `Depends`, а не общего middleware — см. ARCHITECTURE.md,
+  «Технический долг — закрыт (Шаг 27)» (главная причина — совместимость
+  с `tests/conftest.py::login_as()`, которая работает через FastAPI DI)
+- `/docs`/`/redoc`/`/openapi.json` — `docs_url=None` и т.п. в конструкторе
+  `FastAPI(...)`, ручные роуты поверх того же `Depends`; не отключены
+  насовсем, т.к. реально используются в рабочем процессе
+- Фронтенд: паттерн `#auth-gated`/`#login-prompt` с дэшборда (Шаг 25)
+  скопирован на `price.html`/`history.html`/`activity.html`/
+  `statistics.html` — без него бэкенд-гейт сам по себе давал бы зависшую
+  «Загрузка...» и `TypeError` в консоли вместо приглашения войти.
+  `history.js`/`activity.js`/`statistics.js` вообще не были завязаны на
+  `window.sessionReady` до этого шага; `price.js` был завязан частично
+  (только для кнопок редактирования, не для самой загрузки данных)
+- `/etc/caddy/Caddyfile` — `basic_auth`-блок и обходной `handle
+  /auth/vk/*` убраны, весь домен на одном `reverse_proxy
+  127.0.0.1:8000` (см. DEPLOY.md)
+- Тесты: `test_read_endpoints_require_session` (новый, 401 на все 8
+  эндпоинтов), `test_by_driver_excludes_users_without_queue_position`
+  дополнен `login_as(...)` (единственный тест из всего набора, где один
+  из восьми эндпоинтов вызывался без него). Итого 50 тестов, все зелёные
+
+## ✅ Адаптивный favicon — завершён
+- Одиночный `static/favicon-32x32.png` заменён полным набором в
+  `static/fav/` (файлы предоставлены пользователем): `favicon-32x32.png`,
+  `favicon-16x16.png`, `apple-touch-icon.png`, `favicon.ico`,
+  `android-chrome-192x192.png`/`512x512.png` + новый `site.webmanifest`
+- `<link rel="icon" sizes="...">` / `rel="apple-touch-icon"` /
+  `rel="manifest"` на всех 7 HTML-страниц — браузер/ОС сами выбирают
+  нужный размер под экран/DPI, JS/media-query для этого не нужен;
+  `site.webmanifest` — то, откуда Android/Chrome берут иконки 192/512
+  для установки на домашний экран
+- `GET /favicon.ico` — новый публичный роут в `app/main.py`: часть
+  браузеров/ботов запрашивает этот путь с корня домена напрямую,
+  `/static` смонтирован не на корень, без роута был бы `404`
+- `STYLEGUIDE.md` — образец обязательного каркаса страницы обновлён на
+  новый набор `<link>`, чтобы будущие страницы не копировали
+  устаревший путь

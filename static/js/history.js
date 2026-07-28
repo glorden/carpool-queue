@@ -113,7 +113,18 @@ async function applyFilters(users) {
     renderOrders(orders, users);
 }
 
+let currentUser = null;
+
+function updateAuthGate() {
+    document.getElementById("auth-gated").hidden = !currentUser;
+    document.getElementById("login-prompt").hidden = !!currentUser;
+}
+
 async function init() {
+    currentUser = await window.sessionReady;
+    updateAuthGate();
+    if (!currentUser) return;
+
     const users = await loadUsers();
 
     populateUserFilter(users);

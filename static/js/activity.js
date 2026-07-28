@@ -67,7 +67,18 @@ async function applyFilters(users) {
     renderActivity(entries);
 }
 
+let currentUser = null;
+
+function updateAuthGate() {
+    document.getElementById("auth-gated").hidden = !currentUser;
+    document.getElementById("login-prompt").hidden = !!currentUser;
+}
+
 async function init() {
+    currentUser = await window.sessionReady;
+    updateAuthGate();
+    if (!currentUser) return;
+
     const users = await loadUsers();
 
     populateUserFilter(users);

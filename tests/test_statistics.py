@@ -103,7 +103,8 @@ def test_by_driver_sorted_by_received_descending(client, db_engine):
 
 
 def test_by_driver_excludes_users_without_queue_position(client, db_engine):
-    seed_queue(db_engine, ["A", "B", "C"])
+    a, _, _ = seed_queue(db_engine, ["A", "B", "C"])
+    login_as(db_engine, a)
 
     with Session(db_engine) as session:
         dispatcher = User(name="Dispatcher", username="dispatcher")

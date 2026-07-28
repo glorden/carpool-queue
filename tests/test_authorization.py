@@ -68,6 +68,21 @@ def test_price_endpoints_require_session(client, db_engine):
     assert client.delete("/price/1").status_code == 401
 
 
+def test_read_endpoints_require_session(client, db_engine):
+    """Шаг 27: сайт закрыт под VK ID целиком — данные-отдающие GET-эндпоинты
+    тоже требуют сессию, не только мутирующие (см. ARCHITECTURE.md)."""
+    seed_queue(db_engine, ["A", "B", "C"])
+
+    assert client.get("/users").status_code == 401
+    assert client.get("/queue").status_code == 401
+    assert client.get("/orders").status_code == 401
+    assert client.get("/orders/pending").status_code == 401
+    assert client.get("/price").status_code == 401
+    assert client.get("/price/log").status_code == 401
+    assert client.get("/activity").status_code == 401
+    assert client.get("/statistics/summary").status_code == 401
+
+
 # --- 403: сессия есть, но действие не твоё ---
 
 

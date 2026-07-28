@@ -22,6 +22,8 @@ from app.vk_oauth import (
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
+from fastapi.openapi.utils import get_openapi
 
 
 class OrderCreate(BaseModel):
@@ -78,7 +80,7 @@ def _log_activity(
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Carpool Queue")
+app = FastAPI(title="Carpool Queue", docs_url=None, redoc_url=None, openapi_url=None)
 app.add_middleware(
     SessionMiddleware,
     secret_key=SECRET_KEY,
@@ -99,8 +101,34 @@ def health_check():
     return {"status": "ok", "message": "Carpool queue service is running"}
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return FileResponse("static/fav/favicon.ico")
+
+
+### /docs, /redoc, /openapi.json закрыты сессией (docs_url=None выше) —
+### сайт целиком закрыт под VK ID, эти ручки не исключение (см. ARCHITECTURE.md) ###
+
+@app.get("/openapi.json", include_in_schema=False)
+def get_openapi_schema(current_user: User = Depends(get_current_user_required)):
+    return get_openapi(title=app.title, version=app.version, routes=app.routes)
+
+
+@app.get("/docs", include_in_schema=False)
+def get_docs(current_user: User = Depends(get_current_user_required)):
+    return get_swagger_ui_html(openapi_url="/openapi.json", title=app.title + " — Docs")
+
+
+@app.get("/redoc", include_in_schema=False)
+def get_redoc(current_user: User = Depends(get_current_user_required)):
+    return get_redoc_html(openapi_url="/openapi.json", title=app.title + " — ReDoc")
+
+
 @app.get("/users")
-def list_users(session: Session = Depends(get_session)):
+def list_users(
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user_required),
+):
     """Возвращает всех пользователей, включая диспетчеров без очереди."""
     users = session.exec(select(User)).all()
     return [{"user_id": u.id, "name": u.name} for u in users]
@@ -110,6 +138,7 @@ def list_users(session: Session = Depends(get_session)):
 def get_queue(
     queue_type: QueueType | None = None,
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user_required),
 ):
     """Возвращает список пользователей в порядке очереди.
 
@@ -143,6 +172,7 @@ def list_orders(
     queue_type: QueueType | None = None,
     limit: int = Query(default=100, le=500),
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user_required),
 ):
     """Возвращает историю заказов с опциональной фильтрацией.
 
@@ -168,7 +198,10 @@ def list_orders(
     return orders
 
 @app.get("/orders/pending")
-def list_pending_orders(session: Session = Depends(get_session)):
+def list_pending_orders(
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user_required),
+):
     """Возвращает заказы в статусе pending вместе с данными активного OrderOffer
     (кому сейчас предложен заказ)."""
     orders = session.exec(
@@ -590,7 +623,10 @@ def cancel_order(
 
 
 @app.get("/price", response_model=list[PriceItem])
-def list_price_items(session: Session = Depends(get_session)):
+def list_price_items(
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user_required),
+):
     """Возвращает весь прайс-лист."""
     statement = select(PriceItem).order_by(PriceItem.category, PriceItem.id)
     return session.exec(statement).all()
@@ -698,6 +734,7 @@ def delete_price_item(
 def list_price_log(
     limit: int = Query(default=100, le=500),
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user_required),
 ):
     """Возвращает лог изменений прайса, новые сверху."""
     statement = (
@@ -733,6 +770,7 @@ def list_activity(
     event_type: str | None = None,
     limit: int = Query(default=100, le=500),
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user_required),
 ):
     """Возвращает журнал действий, новые сверху, с опциональной фильтрацией
     по user_id/order_id/event_type. Отдельная сущность от истории заказов
@@ -770,7 +808,10 @@ def list_activity(
 
 
 @app.get("/statistics/summary")
-def get_statistics_summary(session: Session = Depends(get_session)):
+def get_statistics_summary(
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user_required),
+):
     """Общая статистика по заказам и по водителям (см. ARCHITECTURE.md)."""
     orders = session.exec(select(Order)).all()
 

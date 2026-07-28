@@ -122,26 +122,16 @@ systemctl enable --now carpool-queue
 ```
 
 ### 8. Caddy — reverse proxy + автоматический HTTPS
-`/etc/caddy/Caddyfile` (актуально с Шага 25 — весь сайт за общим паролем
-`taxi`/..., кроме `/auth/vk/*`: VK обращается на `callback` не из
-браузера пользователя, поэтому браузерный Basic Auth ему не помогает,
-запрос падал бы с `401`):
+`/etc/caddy/Caddyfile` (с Шага 27 — без Basic Auth: сайт целиком закрыт
+VK ID на уровне приложения, см. ARCHITECTURE.md, «Технический долг —
+закрыт (Шаг 27)». До этого шага здесь был `basic_auth`-блок с общим
+паролем и отдельный `handle /auth/vk/*` в обход него — история и причина
+в PROGRESS.md, Шаги 25/27):
 ```
 zakaz.glorden.ru {
-    handle /auth/vk/* {
-        reverse_proxy 127.0.0.1:8000
-    }
-    handle {
-        basic_auth {
-            taxi <bcrypt-хэш>
-        }
-        reverse_proxy 127.0.0.1:8000
-    }
+    reverse_proxy 127.0.0.1:8000
 }
 ```
-Хэш пароля — `caddy hash-password`. Если Basic Auth пока не нужен
-(например, на свежем сервере без него) — подойдёт и простой вариант без
-`handle`-блоков, `reverse_proxy 127.0.0.1:8000` на весь сайт.
 ```bash
 systemctl reload caddy
 ```
