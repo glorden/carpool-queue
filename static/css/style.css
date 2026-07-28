@@ -87,14 +87,7 @@ header {
 }
 
 .login-prompt p {
-    margin-bottom: 16px;
     font-size: 15px;
-}
-
-.btn-vk-login-large {
-    min-height: 44px;
-    padding: 12px 24px;
-    font-size: 16px;
 }
 
 /* static/link-account.html — экран самопривязки VK-аккаунта */
