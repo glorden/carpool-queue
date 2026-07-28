@@ -166,10 +166,7 @@ async function respondToOrder(orderId, response) {
         const res = await fetch(`${API_BASE}/orders/${orderId}/respond`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                user_id: currentUser.user_id,
-                response: response,
-            }),
+            body: JSON.stringify({ response: response }),
         });
 
         if (!res.ok) {
@@ -206,10 +203,7 @@ async function selfAssignOrder(orderId) {
         const res = await fetch(`${API_BASE}/orders/${orderId}/self-assign`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                user_id: currentUser.user_id,
-                reason: trimmedReason,
-            }),
+            body: JSON.stringify({ reason: trimmedReason }),
         });
 
         if (!res.ok) {

@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import SQLModel, Session, create_engine
 
+from app.auth import get_current_user_optional, get_current_user_required
 from app.database import get_session
 from app.main import app
 from app.models.queue import QueuePosition
@@ -37,6 +38,28 @@ def client(db_engine):
     with TestClient(app, base_url="https://testserver") as test_client:
         yield test_client
     app.dependency_overrides.clear()
+
+
+def login_as(engine, user_id):
+    """Переопределяет текущего пользователя сессии для последующих запросов
+    через client — тест действует от имени user_id без реального похода
+    в VK (см. ARCHITECTURE.md, «Технический долг», Шаг 26)."""
+
+    def _load():
+        with Session(engine) as session:
+            return session.get(User, user_id)
+
+    app.dependency_overrides[get_current_user_required] = _load
+    app.dependency_overrides[get_current_user_optional] = _load
+
+
+def logout_test_client():
+    """Убирает переопределение, поставленное login_as() — дальше
+    current_user снова читается из настоящей cookie-сессии (пустой,
+    т.к. login_as её не трогает). Не путать с эндпоинтом POST /auth/logout
+    (тот чистит cookie-сессию, но не dependency_overrides)."""
+    app.dependency_overrides.pop(get_current_user_required, None)
+    app.dependency_overrides.pop(get_current_user_optional, None)
 
 
 def seed_queue(engine, names, queue_type="long"):

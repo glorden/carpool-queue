@@ -20,9 +20,9 @@ let currentUser = null;
 function requireUser() {
     if (!currentUser) {
         alert("Сначала войдите через VK");
-        return null;
+        return false;
     }
-    return currentUser.user_id;
+    return true;
 }
 
 function normalize(text) {
@@ -144,8 +144,7 @@ function startEdit(li, item) {
 }
 
 async function handleSaveEdit(item, name, priceText) {
-    const userId = requireUser();
-    if (!userId) return;
+    if (!requireUser()) return;
 
     name = name.trim();
     priceText = priceText.trim();
@@ -155,7 +154,7 @@ async function handleSaveEdit(item, name, priceText) {
         const res = await fetch(`/price/${item.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_id: userId, name, price_text: priceText }),
+            body: JSON.stringify({ name, price_text: priceText }),
         });
 
         if (!res.ok) {
@@ -170,13 +169,12 @@ async function handleSaveEdit(item, name, priceText) {
 }
 
 async function handleDelete(item) {
-    const userId = requireUser();
-    if (!userId) return;
+    if (!requireUser()) return;
 
     if (!confirm(`Удалить «${item.name}»?`)) return;
 
     try {
-        const res = await fetch(`/price/${item.id}?user_id=${userId}`, {
+        const res = await fetch(`/price/${item.id}`, {
             method: "DELETE",
         });
 
@@ -192,8 +190,7 @@ async function handleDelete(item) {
 }
 
 async function handleAdd(category, form) {
-    const userId = requireUser();
-    if (!userId) return;
+    if (!requireUser()) return;
 
     const nameInput = form.querySelector(".price-add-name");
     const priceInput = form.querySelector(".price-add-price");
@@ -207,7 +204,6 @@ async function handleAdd(category, form) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                user_id: userId,
                 category,
                 name,
                 price_text: priceText,

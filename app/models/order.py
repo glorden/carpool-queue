@@ -31,6 +31,9 @@ class Order(SQLModel, table=True):
     assigned_to: int | None = Field(default=None, foreign_key="user.id")
     completed_at: datetime | None = None
     self_assign_reason: str | None = None
+    created_by: int | None = Field(default=None, foreign_key="user.id")
+    # nullable навсегда — исторические заказы до Шага 26 не заполнить задним
+    # числом (как и assigned_to/self_assign_reason выше). См. ARCHITECTURE.md.
 
 
 class OrderOffer(SQLModel, table=True):

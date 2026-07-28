@@ -5,7 +5,7 @@ from fastapi import FastAPI, Depends, HTTPException, Query, Request
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 from starlette.middleware.sessions import SessionMiddleware
-from app.auth import get_current_user_optional
+from app.auth import get_current_user_optional, get_current_user_required
 from app.config import SECRET_KEY, SESSION_COOKIE_SECURE
 from app.database import get_session
 from app.models.user import User
@@ -31,12 +31,10 @@ class OrderCreate(BaseModel):
 
 
 class OrderRespond(BaseModel):
-    user_id: int
     response: str  # "accepted" или "declined"
 
 
 class OrderSelfAssign(BaseModel):
-    user_id: int
     reason: str
 
 
@@ -45,14 +43,12 @@ class VkLinkRequest(BaseModel):
 
 
 class PriceItemCreate(BaseModel):
-    user_id: int
     category: str
     name: str
     price_text: str
 
 
 class PriceItemUpdate(BaseModel):
-    user_id: int
     category: str | None = None
     name: str | None = None
     price_text: str | None = None
@@ -217,6 +213,7 @@ def list_pending_orders(session: Session = Depends(get_session)):
 def create_order(
     order_in: OrderCreate,
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user_required),
 ):
     """Создаёт новый заказ и сразу предлагает его первому в очереди
     соответствующего типа."""
@@ -224,6 +221,7 @@ def create_order(
         route=order_in.route,
         comment=order_in.comment,
         queue_type=order_in.queue_type,
+        created_by=current_user.id,
     )
     session.add(order)
     session.commit()
@@ -264,6 +262,7 @@ def respond_to_order(
     order_id: int,
     respond_in: OrderRespond,
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user_required),
 ):
     """Принять или отклонить предложенный заказ."""
     order = session.get(Order, order_id)
@@ -273,12 +272,13 @@ def respond_to_order(
     offer = session.exec(
         select(OrderOffer)
         .where(OrderOffer.order_id == order_id)
+        .where(OrderOffer.user_id == current_user.id)
         .where(OrderOffer.response == OfferResponse.pending)
         .order_by(OrderOffer.offered_at.desc())
     ).first()
 
     if offer is None:
-        raise HTTPException(status_code=400, detail="No pending offer for this order")
+        raise HTTPException(status_code=403, detail="Order not offered to you")
 
     if respond_in.response == "accepted":
         offer.response = OfferResponse.accepted
@@ -286,7 +286,7 @@ def respond_to_order(
         session.add(offer)
 
         order.status = OrderStatus.assigned
-        order.assigned_to = respond_in.user_id
+        order.assigned_to = current_user.id
         session.add(order)
 
         max_position = session.exec(
@@ -296,7 +296,7 @@ def respond_to_order(
         ).first()
         user_qp = session.exec(
             select(QueuePosition)
-            .where(QueuePosition.user_id == respond_in.user_id)
+            .where(QueuePosition.user_id == current_user.id)
             .where(QueuePosition.queue_type == order.queue_type)
         ).first()
         user_qp.position = max_position + 1
@@ -305,21 +305,19 @@ def respond_to_order(
         session.commit()
         session.refresh(order)
 
-        driver = session.get(User, respond_in.user_id)
-        driver_name = driver.name if driver else "?"
-        notify_accepted(order, driver_name, driver.vk_id if driver else None)
+        notify_accepted(order, current_user.name, current_user.vk_id)
         _log_activity(
             session,
             "order_accepted",
-            f"{driver_name} принял заказ №{order.id}",
-            user_id=respond_in.user_id,
+            f"{current_user.name} принял заказ №{order.id}",
+            user_id=current_user.id,
             order_id=order.id,
         )
         _log_activity(
             session,
             "queue_changed",
-            f"{driver_name} перемещён в конец очереди",
-            user_id=respond_in.user_id,
+            f"{current_user.name} перемещён в конец очереди",
+            user_id=current_user.id,
             order_id=order.id,
         )
         session.refresh(order)
@@ -331,11 +329,9 @@ def respond_to_order(
         offer.responded_at = datetime.utcnow()
         session.add(offer)
 
-        declining_user = session.get(User, respond_in.user_id)
-
         current_qp = session.exec(
             select(QueuePosition)
-            .where(QueuePosition.user_id == respond_in.user_id)
+            .where(QueuePosition.user_id == current_user.id)
             .where(QueuePosition.queue_type == order.queue_type)
         ).first()
         next_qp = session.exec(
@@ -360,8 +356,8 @@ def respond_to_order(
         _log_activity(
             session,
             "order_declined",
-            f"{declining_user.name if declining_user else '?'} отказался от заказа №{order.id}",
-            user_id=respond_in.user_id,
+            f"{current_user.name} отказался от заказа №{order.id}",
+            user_id=current_user.id,
             order_id=order.id,
         )
 
@@ -371,7 +367,7 @@ def respond_to_order(
             order,
             driver_name,
             driver.vk_id if driver else None,
-            declined_by=declining_user.name if declining_user else None,
+            declined_by=current_user.name,
         )
         _log_activity(
             session,
@@ -395,6 +391,7 @@ def self_assign_order(
     order_id: int,
     self_assign_in: OrderSelfAssign,
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user_required),
 ):
     """Самоназначение на заказ вне очереди: водитель указывает причину
     (например, уже находится в городе подачи), сразу становится
@@ -416,7 +413,7 @@ def self_assign_order(
 
     user_qp = session.exec(
         select(QueuePosition)
-        .where(QueuePosition.user_id == self_assign_in.user_id)
+        .where(QueuePosition.user_id == current_user.id)
         .where(QueuePosition.queue_type == order.queue_type)
     ).first()
     if user_qp is None:
@@ -435,14 +432,14 @@ def self_assign_order(
 
     offer = OrderOffer(
         order_id=order.id,
-        user_id=self_assign_in.user_id,
+        user_id=current_user.id,
         response=OfferResponse.accepted,
         responded_at=datetime.utcnow(),
     )
     session.add(offer)
 
     order.status = OrderStatus.assigned
-    order.assigned_to = self_assign_in.user_id
+    order.assigned_to = current_user.id
     order.self_assign_reason = reason
     session.add(order)
 
@@ -457,21 +454,19 @@ def self_assign_order(
     session.commit()
     session.refresh(order)
 
-    driver = session.get(User, self_assign_in.user_id)
-    driver_name = driver.name if driver else "?"
-    notify_self_assigned(order, driver_name, reason, driver.vk_id if driver else None)
+    notify_self_assigned(order, current_user.name, reason, current_user.vk_id)
     _log_activity(
         session,
         "order_self_assigned",
-        f"Самоназначение вне очереди на заказ №{order.id}: {driver_name}. Причина: {reason}",
-        user_id=self_assign_in.user_id,
+        f"Самоназначение вне очереди на заказ №{order.id}: {current_user.name}. Причина: {reason}",
+        user_id=current_user.id,
         order_id=order.id,
     )
     _log_activity(
         session,
         "queue_changed",
-        f"{driver_name} перемещён в конец очереди",
-        user_id=self_assign_in.user_id,
+        f"{current_user.name} перемещён в конец очереди",
+        user_id=current_user.id,
         order_id=order.id,
     )
     session.refresh(order)
@@ -483,6 +478,7 @@ def self_assign_order(
 def complete_order(
     order_id: int,
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user_required),
 ):
     """Отмечает заказ как завершённый."""
     order = session.get(Order, order_id)
@@ -495,18 +491,20 @@ def complete_order(
             detail=f"Order must be 'assigned' to complete, current status: {order.status.value}",
         )
 
+    if order.assigned_to != current_user.id:
+        raise HTTPException(status_code=403, detail="Order is not assigned to you")
+
     order.status = OrderStatus.completed
     order.completed_at = datetime.utcnow()
     session.add(order)
     session.commit()
     session.refresh(order)
 
-    driver = session.get(User, order.assigned_to) if order.assigned_to else None
     _log_activity(
         session,
         "order_completed",
-        f"{driver.name if driver else '?'} завершил заказ №{order.id}",
-        user_id=order.assigned_to,
+        f"{current_user.name} завершил заказ №{order.id}",
+        user_id=current_user.id,
         order_id=order.id,
     )
     session.refresh(order)
@@ -518,6 +516,7 @@ def complete_order(
 def cancel_order(
     order_id: int,
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user_required),
 ):
     """Отменяет заказ. Если он был назначен водителю, возвращает того
     в начало очереди (см. ARCHITECTURE.md)."""
@@ -530,6 +529,17 @@ def cancel_order(
             status_code=400,
             detail=f"Order cannot be cancelled from status: {order.status.value}",
         )
+
+    # created_by может быть None для заказов, созданных до Шага 26 —
+    # для них сверять личность не с чем, разрешаем любому залогиненному
+    # (см. ARCHITECTURE.md, «Технический долг»)
+    if order.status == OrderStatus.pending:
+        if order.created_by is not None and order.created_by != current_user.id:
+            raise HTTPException(status_code=403, detail="Order was created by someone else")
+    elif order.status == OrderStatus.assigned:
+        known_owners = {uid for uid in (order.created_by, order.assigned_to) if uid is not None}
+        if known_owners and current_user.id not in known_owners:
+            raise HTTPException(status_code=403, detail="Order is not yours")
 
     if order.status == OrderStatus.assigned and order.assigned_to is not None:
         user_qp = session.exec(
@@ -590,6 +600,7 @@ def list_price_items(session: Session = Depends(get_session)):
 def create_price_item(
     item_in: PriceItemCreate,
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user_required),
 ):
     """Добавляет новую позицию прайса. Доступно любому пользователю
     (см. ARCHITECTURE.md), действие логируется."""
@@ -603,7 +614,7 @@ def create_price_item(
     session.refresh(item)
 
     log_entry = PriceLogEntry(
-        user_id=item_in.user_id,
+        user_id=current_user.id,
         action="created",
         item_name=item.name,
         new_value=_price_snapshot(item),
@@ -620,6 +631,7 @@ def update_price_item(
     item_id: int,
     item_in: PriceItemUpdate,
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user_required),
 ):
     """Изменяет позицию прайса. Действие логируется."""
     item = session.get(PriceItem, item_id)
@@ -640,7 +652,7 @@ def update_price_item(
     session.refresh(item)
 
     log_entry = PriceLogEntry(
-        user_id=item_in.user_id,
+        user_id=current_user.id,
         action="updated",
         item_name=item.name,
         old_value=old_value,
@@ -656,8 +668,8 @@ def update_price_item(
 @app.delete("/price/{item_id}")
 def delete_price_item(
     item_id: int,
-    user_id: int,
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user_required),
 ):
     """Удаляет позицию прайса. Действие логируется."""
     item = session.get(PriceItem, item_id)
@@ -671,7 +683,7 @@ def delete_price_item(
     session.commit()
 
     log_entry = PriceLogEntry(
-        user_id=user_id,
+        user_id=current_user.id,
         action="deleted",
         item_name=item_name,
         old_value=old_value,

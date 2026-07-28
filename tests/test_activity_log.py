@@ -2,7 +2,7 @@
 «Журнал действий». Проверяем, что события пишутся в ожидаемом порядке
 и что фильтры на GET /activity работают.
 """
-from tests.conftest import seed_queue
+from tests.conftest import login_as, seed_queue
 
 
 def event_types(client, **params):
@@ -12,9 +12,12 @@ def event_types(client, **params):
 def test_full_order_lifecycle_writes_expected_events(client, db_engine):
     a, b, _ = seed_queue(db_engine, ["A", "B", "C"])
 
+    login_as(db_engine, a)
     order_id = client.post("/orders", json={"route": "test", "queue_type": "long"}).json()["id"]
-    client.post(f"/orders/{order_id}/respond", json={"user_id": a, "response": "declined"})
-    client.post(f"/orders/{order_id}/respond", json={"user_id": b, "response": "accepted"})
+    login_as(db_engine, a)
+    client.post(f"/orders/{order_id}/respond", json={"response": "declined"})
+    login_as(db_engine, b)
+    client.post(f"/orders/{order_id}/respond", json={"response": "accepted"})
     client.post(f"/orders/{order_id}/complete")
 
     # новые сверху
@@ -32,8 +35,10 @@ def test_full_order_lifecycle_writes_expected_events(client, db_engine):
 def test_cancel_assigned_order_logs_queue_change_and_cancellation(client, db_engine):
     a, _, _ = seed_queue(db_engine, ["A", "B", "C"])
 
+    login_as(db_engine, a)
     order_id = client.post("/orders", json={"route": "test", "queue_type": "long"}).json()["id"]
-    client.post(f"/orders/{order_id}/respond", json={"user_id": a, "response": "accepted"})
+    login_as(db_engine, a)
+    client.post(f"/orders/{order_id}/respond", json={"response": "accepted"})
     client.post(f"/orders/{order_id}/cancel")
 
     types = event_types(client, order_id=order_id)
@@ -44,10 +49,12 @@ def test_cancel_assigned_order_logs_queue_change_and_cancellation(client, db_eng
 def test_self_assign_logs_reason_and_queue_change(client, db_engine):
     a, b, _ = seed_queue(db_engine, ["A", "B", "C"])
 
+    login_as(db_engine, a)
     order_id = client.post("/orders", json={"route": "test", "queue_type": "long"}).json()["id"]
+    login_as(db_engine, b)
     client.post(
         f"/orders/{order_id}/self-assign",
-        json={"user_id": b, "reason": "уже в городе подачи"},
+        json={"reason": "уже в городе подачи"},
     )
 
     types = event_types(client, order_id=order_id)
@@ -64,7 +71,9 @@ def test_self_assign_logs_reason_and_queue_change(client, db_engine):
 def test_activity_filters_by_event_type_and_user(client, db_engine):
     a, _, _ = seed_queue(db_engine, ["A", "B", "C"])
 
+    login_as(db_engine, a)
     client.post("/orders", json={"route": "one", "queue_type": "long"})
+    login_as(db_engine, a)
     client.post("/orders", json={"route": "two", "queue_type": "long"})
 
     created_entries = client.get("/activity", params={"event_type": "order_created"}).json()
