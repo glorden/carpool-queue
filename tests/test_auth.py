@@ -38,7 +38,7 @@ def test_pkce_pairs_are_unique():
 def test_build_authorize_url_contains_required_params():
     url = build_authorize_url(state="test-state", code_challenge="test-challenge")
 
-    assert url.startswith("https://id.vk.com/authorize?")
+    assert url.startswith("https://id.vk.ru/authorize?")
     assert "response_type=code" in url
     assert "state=test-state" in url
     assert "code_challenge=test-challenge" in url

@@ -9,11 +9,19 @@ FastAPI — только сам протокол VK ID. Если когда-ни
 переиспользовать его в другом проекте, единственное, что придётся
 поменять, — прямой импорт app.config ниже на параметры функций.
 
-ВАЖНО: точные URL/имена параметров ниже — рабочая гипотеза (id.vk.com был
-недоступен для прямой проверки документации на этапе написания). Старый
-oauth.vk.com полностью deprecated, актуальная система — VK ID на базе
-OAuth 2.1 с обязательным PKCE. Сверить с официальной документацией при
-регистрации приложения в кабинете id.vk.com, до реального использования.
+Домен и пути эндпоинтов подтверждены официальной документацией
+(id.vk.ru/about/business/go/docs/ru/vkid/latest/vk-id/connection/realization,
+.../work-with-user-info/user-info) — обратите внимание, именно id.vk.ru,
+не id.vk.com (последний недоступен из части сетей/окружений). Прямая
+работа с API без JS SDK официально поддерживается VK — теряются только
+элементы быстрого входа (One Tap и т.п.), не нужные при чистом
+server-side redirect. Старый oauth.vk.com полностью deprecated,
+актуальная система — VK ID на базе OAuth 2.1 с обязательным PKCE.
+
+Не подтверждено документацией и помечено # СВЕРИТЬ по месту: точная форма
+JSON-ответа /oauth2/user_info (структура result["user"]["user_id"] —
+предположение по аналогии со старым VK API) и способ передачи
+client_secret (в теле запроса, как сейчас, или в заголовке Authorization).
 """
 import base64
 import hashlib
@@ -24,9 +32,9 @@ import requests
 
 from app.config import VK_CLIENT_ID, VK_CLIENT_SECRET, VK_REDIRECT_URI
 
-VK_ID_AUTHORIZE_URL = "https://id.vk.com/authorize"          # СВЕРИТЬ
-VK_ID_TOKEN_URL = "https://id.vk.com/oauth2/auth"             # СВЕРИТЬ
-VK_ID_USERINFO_URL = "https://id.vk.com/oauth2/user_info"     # СВЕРИТЬ
+VK_ID_AUTHORIZE_URL = "https://id.vk.ru/authorize"
+VK_ID_TOKEN_URL = "https://id.vk.ru/oauth2/auth"
+VK_ID_USERINFO_URL = "https://id.vk.ru/oauth2/user_info"
 
 
 def generate_pkce_pair() -> tuple[str, str]:
