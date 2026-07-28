@@ -48,14 +48,16 @@ def test_build_authorize_url_contains_required_params():
 
 
 def _mock_vk_responses(monkeypatch, vk_user_id):
-    """Подменяет только сетевые вызовы VK ID — app.main импортировал их по
-    имени (`from app.vk_oauth import ...`), поэтому патчить нужно ссылку в
+    """Подменяет сетевой вызов VK ID — app.main импортировал его по имени
+    (`from app.vk_oauth import ...`), поэтому патчить нужно ссылку в
     app.main, а не в app.vk_oauth."""
     monkeypatch.setattr(
         "app.main.exchange_code",
-        lambda code, verifier, device_id: {"access_token": "fake-token"},
+        lambda code, verifier, device_id: {
+            "access_token": "fake-token",
+            "user_id": vk_user_id,
+        },
     )
-    monkeypatch.setattr("app.main.fetch_vk_user_id", lambda access_token: vk_user_id)
 
 
 def _do_vk_login(client, monkeypatch, vk_user_id):

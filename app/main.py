@@ -17,7 +17,6 @@ from app.notifications import notify_accepted, notify_offer, notify_self_assigne
 from app.vk_oauth import (
     build_authorize_url,
     exchange_code,
-    fetch_vk_user_id,
     generate_pkce_pair,
 )
 from pydantic import BaseModel
@@ -841,7 +840,7 @@ def vk_callback(
 
     try:
         token_data = exchange_code(code, verifier, device_id)
-        vk_user_id = fetch_vk_user_id(token_data["access_token"])
+        vk_user_id = int(token_data["user_id"])
     except ValueError as exc:
         logger.warning("VK ID exchange failed: %s", exc)
         raise HTTPException(status_code=502, detail="VK ID недоступен, попробуйте позже")
