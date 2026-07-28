@@ -1,3 +1,4 @@
+import logging
 import secrets
 from datetime import datetime
 from fastapi import FastAPI, Depends, HTTPException, Query, Request
@@ -79,6 +80,8 @@ def _log_activity(
     session.add(entry)
     session.commit()
 
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Carpool Queue")
 app.add_middleware(
@@ -839,7 +842,8 @@ def vk_callback(
     try:
         token_data = exchange_code(code, verifier, device_id)
         vk_user_id = fetch_vk_user_id(token_data["access_token"])
-    except ValueError:
+    except ValueError as exc:
+        logger.warning("VK ID exchange failed: %s", exc)
         raise HTTPException(status_code=502, detail="VK ID недоступен, попробуйте позже")
 
     user = session.exec(select(User).where(User.vk_id == vk_user_id)).first()
