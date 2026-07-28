@@ -17,27 +17,30 @@
     <nav id="site-nav" class="site-nav"></nav>
 
     <main>
-        <section id="queue-section">
-            <h2>Очередь</h2>
-            <div class="queue-columns">
-                <div class="queue-group">
-                    <h3>Дальние поездки</h3>
-                    <ol id="queue-list-long">
-                        <li>Загрузка...</li>
-                    </ol>
-                </div>
-                <div class="queue-group">
-                    <h3>Короткие поездки</h3>
-                    <ol id="queue-list-short">
-                        <li>Загрузка...</li>
-                    </ol>
-                </div>
-            </div>
-        </section>
-
-        <p id="login-prompt" hidden>Войдите через VK, чтобы видеть и создавать заказы.</p>
+        <div id="login-prompt" class="login-prompt" hidden>
+            <p>Войдите через VK, чтобы видеть очередь и заказы.</p>
+            <a href="/auth/vk/login" class="btn-vk-login btn-vk-login-large">Войти через VK</a>
+        </div>
 
         <div id="auth-gated" hidden>
+            <section id="queue-section">
+                <h2>Очередь</h2>
+                <div class="queue-columns">
+                    <div class="queue-group">
+                        <h3>Дальние поездки</h3>
+                        <ol id="queue-list-long">
+                            <li>Загрузка...</li>
+                        </ol>
+                    </div>
+                    <div class="queue-group">
+                        <h3>Короткие поездки</h3>
+                        <ol id="queue-list-short">
+                            <li>Загрузка...</li>
+                        </ol>
+                    </div>
+                </div>
+            </section>
+
             <section id="pending-section">
                 <h2>Заказы, ожидающие ответа</h2>
                 <ul id="pending-list">

@@ -80,9 +80,21 @@ header {
     color: #555;
 }
 
-#login-prompt {
+.login-prompt {
+    text-align: center;
+    padding: 48px 16px;
     color: #666;
-    font-size: 14px;
+}
+
+.login-prompt p {
+    margin-bottom: 16px;
+    font-size: 15px;
+}
+
+.btn-vk-login-large {
+    min-height: 44px;
+    padding: 12px 24px;
+    font-size: 16px;
 }
 
 /* static/link-account.html — экран самопривязки VK-аккаунта */

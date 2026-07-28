@@ -367,6 +367,10 @@ async function init() {
     currentUser = await window.sessionReady;
     updateAuthGate();
 
+    if (!currentUser) {
+        return;
+    }
+
     await refreshQueues();
     await refreshPending();
     await refreshMyOrders();
