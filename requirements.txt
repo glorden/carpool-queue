@@ -3,7 +3,7 @@ uvicorn[standard]
 sqlmodel
 alembic
 python-dotenv
-passlib[bcrypt]
+itsdangerous
 requests
 
 # для тестов (pytest tests/)

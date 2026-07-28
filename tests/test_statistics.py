@@ -90,7 +90,7 @@ def test_by_driver_excludes_users_without_queue_position(client, db_engine):
     seed_queue(db_engine, ["A", "B", "C"])
 
     with Session(db_engine) as session:
-        dispatcher = User(name="Dispatcher", username="dispatcher", password_hash="x")
+        dispatcher = User(name="Dispatcher", username="dispatcher")
         session.add(dispatcher)
         session.commit()
         session.refresh(dispatcher)

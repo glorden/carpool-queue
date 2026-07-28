@@ -43,10 +43,72 @@ header {
     font-weight: 600;
 }
 
-.user-selector select {
-    padding: 8px;
+.site-user {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+    font-size: 14px;
+}
+
+.site-user-name {
+    color: #333;
+}
+
+.btn-vk-login,
+.btn-logout {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 6px 14px;
+    font-size: 14px;
+    text-decoration: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.btn-vk-login {
+    background: #37c;
+    color: #fff;
+    border: 1px solid #37c;
+}
+
+.btn-logout {
+    background: #f3f3f3;
+    border: 1px solid #888;
+    color: #555;
+}
+
+#login-prompt {
+    color: #666;
+    font-size: 14px;
+}
+
+/* static/link-account.html — экран самопривязки VK-аккаунта */
+#link-candidates-list {
+    list-style: none;
+    padding: 0;
+    margin: 16px 0 0 0;
+}
+
+#link-candidates-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
     font-size: 15px;
-    max-width: 100%;
+}
+
+#link-candidates-list button {
+    padding: 8px 16px;
+    min-height: 40px;
+    background: #d7f5e6;
+    border: 1px solid #0a7;
+    border-radius: 4px;
+    cursor: pointer;
 }
 
 #queue-list-long,

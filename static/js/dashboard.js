@@ -14,48 +14,22 @@ async function loadQueue(queueType) {
     return await res.json();
 }
 
-async function loadUsers() {
-    const res = await fetch(`${API_BASE}/users`);
-    const users = await res.json();
-    return users;
-}
+let currentUser = null;
 
-function populateUserSelector(users) {
-    const select = document.getElementById("current-user");
-    const savedUserId = localStorage.getItem("carpool_user_id");
-
-    users.forEach((entry) => {
-        const option = document.createElement("option");
-        option.value = entry.user_id;
-        option.textContent = entry.name;
-        if (savedUserId && String(entry.user_id) === savedUserId) {
-            option.selected = true;
-        }
-        select.appendChild(option);
-    });
-
-    select.addEventListener("change", () => {
-        if (select.value) {
-            localStorage.setItem("carpool_user_id", select.value);
-        } else {
-            localStorage.removeItem("carpool_user_id");
-        }
-        renderQueue(currentQueues.long, "long");
-        renderQueue(currentQueues.short, "short");
-        refreshPending();
-        refreshMyOrders();
-    });
+function updateAuthGate() {
+    document.getElementById("auth-gated").hidden = !currentUser;
+    document.getElementById("login-prompt").hidden = !!currentUser;
 }
 
 function renderQueue(queue, queueType) {
     const list = document.getElementById(`queue-list-${queueType}`);
-    const savedUserId = localStorage.getItem("carpool_user_id");
+    const currentUserId = currentUser ? String(currentUser.user_id) : null;
 
     list.innerHTML = "";
     queue.forEach((entry) => {
         const li = document.createElement("li");
         li.textContent = entry.name;
-        if (savedUserId && String(entry.user_id) === savedUserId) {
+        if (currentUserId && String(entry.user_id) === currentUserId) {
             li.classList.add("current-user");
         }
         list.appendChild(li);
@@ -79,7 +53,7 @@ async function loadPendingOrders() {
 
 function renderPendingOrders(orders) {
     const list = document.getElementById("pending-list");
-    const currentUserId = localStorage.getItem("carpool_user_id");
+    const currentUserId = currentUser ? String(currentUser.user_id) : null;
     list.innerHTML = "";
 
     if (orders.length === 0) {
@@ -183,10 +157,8 @@ async function cancelOrder(orderId) {
 }
 
 async function respondToOrder(orderId, response) {
-    const currentUserId = localStorage.getItem("carpool_user_id");
-
-    if (!currentUserId) {
-        alert("Сначала выберите себя в верхней части страницы.");
+    if (!currentUser) {
+        alert("Сначала войдите через VK.");
         return;
     }
 
@@ -195,7 +167,7 @@ async function respondToOrder(orderId, response) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                user_id: Number(currentUserId),
+                user_id: currentUser.user_id,
                 response: response,
             }),
         });
@@ -214,10 +186,8 @@ async function respondToOrder(orderId, response) {
 }
 
 async function selfAssignOrder(orderId) {
-    const currentUserId = localStorage.getItem("carpool_user_id");
-
-    if (!currentUserId) {
-        alert("Сначала выберите себя в верхней части страницы.");
+    if (!currentUser) {
+        alert("Сначала войдите через VK.");
         return;
     }
 
@@ -237,7 +207,7 @@ async function selfAssignOrder(orderId) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                user_id: Number(currentUserId),
+                user_id: currentUser.user_id,
                 reason: trimmedReason,
             }),
         });
@@ -256,14 +226,12 @@ async function selfAssignOrder(orderId) {
 }
 
 async function loadMyOrders() {
-    const currentUserId = localStorage.getItem("carpool_user_id");
-
-    if (!currentUserId) {
+    if (!currentUser) {
         return [];
     }
 
     const res = await fetch(
-        `${API_BASE}/orders?status=assigned&user_id=${currentUserId}`
+        `${API_BASE}/orders?status=assigned&user_id=${currentUser.user_id}`
     );
 
     return await res.json();
@@ -396,11 +364,10 @@ async function handleCreateOrder(event) {
 }
 
 async function init() {
-    const users = await loadUsers();
+    currentUser = await window.sessionReady;
+    updateAuthGate();
 
-    populateUserSelector(users);
     await refreshQueues();
-
     await refreshPending();
     await refreshMyOrders();
 

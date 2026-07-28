@@ -7,9 +7,10 @@ class User(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str
     username: str = Field(unique=True, index=True)
-    password_hash: str
     active: bool = Field(default=True)
     # active=False используем позже для "заморозки" (отпуск/болезнь) —
     # такому пользователю заказы предлагаться не будут
-    vk_id: int | None = Field(default=None)
-    # id пользователя VK — для тега в уведомлениях (см. ARCHITECTURE.md)
+    vk_id: int | None = Field(default=None, unique=True)
+    # id пользователя VK — источник входа (см. ARCHITECTURE.md, "Вход через
+    # VK ID") и тег в уведомлениях. unique — это ключ входа, один VK-аккаунт
+    # не может быть привязан к двум User

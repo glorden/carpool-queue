@@ -1,6 +1,11 @@
+import secrets
 from datetime import datetime
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException, Query, Request
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
+from starlette.middleware.sessions import SessionMiddleware
+from app.auth import get_current_user_optional
+from app.config import SECRET_KEY, SESSION_COOKIE_SECURE
 from app.database import get_session
 from app.models.user import User
 from app.models.queue import QueuePosition, QueueType
@@ -8,9 +13,15 @@ from app.models.order import Order, OrderOffer, OfferResponse, OrderStatus
 from app.models.price import PriceItem, PriceLogEntry
 from app.models.activity import ActivityLog
 from app.notifications import notify_accepted, notify_offer, notify_self_assigned
+from app.vk_oauth import (
+    build_authorize_url,
+    exchange_code,
+    fetch_vk_user_id,
+    generate_pkce_pair,
+)
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
 
 class OrderCreate(BaseModel):
@@ -27,6 +38,10 @@ class OrderRespond(BaseModel):
 class OrderSelfAssign(BaseModel):
     user_id: int
     reason: str
+
+
+class VkLinkRequest(BaseModel):
+    user_id: int
 
 
 class PriceItemCreate(BaseModel):
@@ -66,6 +81,14 @@ def _log_activity(
 
 
 app = FastAPI(title="Carpool Queue")
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=SECRET_KEY,
+    session_cookie="carpool_session",
+    same_site="lax",
+    https_only=SESSION_COOKIE_SECURE,
+    max_age=60 * 60 * 24 * 90,
+)
 app.mount("/static", StaticFiles(directory="static", html=True), name="static")
 
 @app.get("/")
@@ -777,3 +800,120 @@ def get_statistics_summary(session: Session = Depends(get_session)):
     by_driver.sort(key=lambda d: d["received"], reverse=True)
 
     return {"overall": overall, "by_driver": by_driver}
+
+
+### Вход через VK ID (см. ARCHITECTURE.md, «Вход через VK ID») ###
+
+@app.get("/auth/vk/login")
+def vk_login(request: Request):
+    """Начинает VK ID OAuth: готовит PKCE-пару и state, кладёт их в
+    сессию (нужны на шаге callback), редиректит на VK."""
+    verifier, challenge = generate_pkce_pair()
+    state = secrets.token_urlsafe(32)
+    request.session["oauth_state"] = state
+    request.session["oauth_code_verifier"] = verifier
+    return RedirectResponse(build_authorize_url(state, challenge))
+
+
+@app.get("/auth/vk/callback")
+def vk_callback(
+    request: Request,
+    code: str | None = None,
+    state: str | None = None,
+    device_id: str | None = None,
+    error: str | None = None,
+    session: Session = Depends(get_session),
+):
+    """Обрабатывает возврат с VK: сверяет state, обменивает code на
+    access_token, определяет vk_id. Дальше три исхода — уже привязанный
+    User (сразу сессия), свободный vk_id при наличии непривязанных User
+    (экран самопривязки), или отказ (все User уже привязаны)."""
+    if error or not code or not state:
+        return RedirectResponse("/")
+
+    expected_state = request.session.pop("oauth_state", None)
+    verifier = request.session.pop("oauth_code_verifier", None)
+    if not expected_state or state != expected_state or not verifier:
+        raise HTTPException(status_code=400, detail="Invalid OAuth state")
+
+    try:
+        token_data = exchange_code(code, verifier, device_id)
+        vk_user_id = fetch_vk_user_id(token_data["access_token"])
+    except ValueError:
+        raise HTTPException(status_code=502, detail="VK ID недоступен, попробуйте позже")
+
+    user = session.exec(select(User).where(User.vk_id == vk_user_id)).first()
+    if user is not None:
+        request.session["user_id"] = user.id
+        return RedirectResponse("/")
+
+    has_unclaimed = session.exec(select(User).where(User.vk_id.is_(None))).first()
+    if has_unclaimed is None:
+        return RedirectResponse("/static/login-denied.html")
+
+    request.session["pending_vk_id"] = vk_user_id
+    return RedirectResponse("/static/link-account.html")
+
+
+@app.get("/auth/vk/link-candidates")
+def vk_link_candidates(request: Request, session: Session = Depends(get_session)):
+    """Список User без привязанного vk_id — для экрана самопривязки.
+    Доступен только сразу после callback с новым vk_id (см. vk_callback)."""
+    if "pending_vk_id" not in request.session:
+        raise HTTPException(status_code=403, detail="No pending VK link in session")
+
+    users = session.exec(select(User).where(User.vk_id.is_(None))).all()
+    return [{"user_id": u.id, "name": u.name} for u in users]
+
+
+@app.post("/auth/vk/link")
+def vk_link(
+    body: VkLinkRequest, request: Request, session: Session = Depends(get_session)
+):
+    """Завершает самопривязку: сохраняет vk_id, полученный на callback,
+    в выбранного пользователя, сразу логинит его."""
+    pending_vk_id = request.session.get("pending_vk_id")
+    if pending_vk_id is None:
+        raise HTTPException(status_code=400, detail="No pending VK link in session")
+
+    user = session.get(User, body.user_id)
+    if user is None or user.vk_id is not None:
+        raise HTTPException(status_code=400, detail="User not available for linking")
+
+    user.vk_id = pending_vk_id
+    session.add(user)
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(status_code=409, detail="This VK account is already linked")
+    session.refresh(user)
+
+    request.session.pop("pending_vk_id", None)
+    request.session["user_id"] = user.id
+    _log_activity(
+        session,
+        "vk_account_linked",
+        f"{user.name} привязал VK-аккаунт",
+        user_id=user.id,
+    )
+
+    return {"user_id": user.id, "name": user.name}
+
+
+@app.post("/auth/logout")
+def logout(request: Request):
+    request.session.clear()
+    return {"status": "ok"}
+
+
+@app.get("/me")
+def get_me(user: User | None = Depends(get_current_user_optional)):
+    if user is None:
+        return {"authenticated": False}
+    return {
+        "authenticated": True,
+        "user_id": user.id,
+        "name": user.name,
+        "username": user.username,
+    }

@@ -5,8 +5,8 @@ from app.models.user import User
 from app.models.queue import QueuePosition
 
 with Session(engine) as session:
-    user1 = User(name="Иван", username="ivan", password_hash="test")
-    user2 = User(name="Мария", username="maria", password_hash="test")
+    user1 = User(name="Иван", username="ivan")
+    user2 = User(name="Мария", username="maria")
     session.add(user1)
     session.add(user2)
     session.commit()

@@ -10,14 +10,9 @@
 <body>
     <header>
         <h1>Очередь заказов</h1>
-
-        <div class="user-selector">
-            <label for="current-user">Выберите себя:</label>
-            <select id="current-user">
-                <option value="">— Выберите —</option>
-            </select>
-        </div>
     </header>
+
+    <div id="site-user" class="site-user"></div>
 
     <nav id="site-nav" class="site-nav"></nav>
 
@@ -40,67 +35,72 @@
             </div>
         </section>
 
-        <section id="pending-section">
-            <h2>Заказы, ожидающие ответа</h2>
-            <ul id="pending-list">
-                <li>Загрузка...</li>
-            </ul>
-        </section>
+        <p id="login-prompt" hidden>Войдите через VK, чтобы видеть и создавать заказы.</p>
 
-        <section id="my-orders-section">
-            <h2>Мои заказы в пути</h2>
-            <ul id="my-orders-list">
-                <li>Загрузка...</li>
-            </ul>
-        </section>
+        <div id="auth-gated" hidden>
+            <section id="pending-section">
+                <h2>Заказы, ожидающие ответа</h2>
+                <ul id="pending-list">
+                    <li>Загрузка...</li>
+                </ul>
+            </section>
 
-        <section id="create-order-section">
-            <h2>Создать заказ</h2>
+            <section id="my-orders-section">
+                <h2>Мои заказы в пути</h2>
+                <ul id="my-orders-list">
+                    <li>Загрузка...</li>
+                </ul>
+            </section>
 
-            <form id="create-order-form">
-                <div>
-                    <label for="route">Маршрут:</label>
-                    <input
-                        type="text"
-                        id="route"
-                        name="route"
-                        placeholder="Например: Санкт-Петербург — Тверь"
-                    >
-                    <span id="route-latin-warning" class="hint-warning" hidden>
-                        Проверьте раскладку — маршрут латиницей
-                    </span>
-                </div>
+            <section id="create-order-section">
+                <h2>Создать заказ</h2>
 
-                <div>
-                    <label for="comment">Комментарий:</label>
-                    <input
-                        type="text"
-                        id="comment"
-                        name="comment"
-                        placeholder="Например: выезд утром, 2 пассажира"
-                    >
-                </div>
+                <form id="create-order-form">
+                    <div>
+                        <label for="route">Маршрут:</label>
+                        <input
+                            type="text"
+                            id="route"
+                            name="route"
+                            placeholder="Например: Санкт-Петербург — Тверь"
+                        >
+                        <span id="route-latin-warning" class="hint-warning" hidden>
+                            Проверьте раскладку — маршрут латиницей
+                        </span>
+                    </div>
 
-                <div class="order-type-field">
-                    <span class="order-type-label">Тип заказа:</span>
-                    <label class="radio-label">
-                        <input type="radio" name="queue_type" value="long" required>
-                        Дальний
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="queue_type" value="short" required>
-                        Короткий
-                    </label>
-                </div>
+                    <div>
+                        <label for="comment">Комментарий:</label>
+                        <input
+                            type="text"
+                            id="comment"
+                            name="comment"
+                            placeholder="Например: выезд утром, 2 пассажира"
+                        >
+                    </div>
 
-                <button type="submit">Создать заказ</button>
-            </form>
+                    <div class="order-type-field">
+                        <span class="order-type-label">Тип заказа:</span>
+                        <label class="radio-label">
+                            <input type="radio" name="queue_type" value="long" required>
+                            Дальний
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="queue_type" value="short" required>
+                            Короткий
+                        </label>
+                    </div>
 
-            <p id="create-order-status"></p>
-        </section>
+                    <button type="submit">Создать заказ</button>
+                </form>
+
+                <p id="create-order-status"></p>
+            </section>
+        </div>
     </main>
 
     <script src="/static/js/nav.js"></script>
+    <script src="/static/js/session.js"></script>
     <script src="/static/js/dashboard.js"></script>
 </body>
 </html>

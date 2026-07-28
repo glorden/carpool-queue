@@ -30,7 +30,11 @@ def client(db_engine):
             yield session
 
     app.dependency_overrides[get_session] = override_get_session
-    with TestClient(app) as test_client:
+    # base_url на https — иначе Secure-cookie сессии (SESSION_COOKIE_SECURE,
+    # см. app/main.py) не возвращался бы обратно на дефолтном http://testserver,
+    # и вход через VK нельзя было бы протестировать (см. ARCHITECTURE.md,
+    # «Вход через VK ID»). На проде трафик снаружи всегда HTTPS (Caddy).
+    with TestClient(app, base_url="https://testserver") as test_client:
         yield test_client
     app.dependency_overrides.clear()
 
@@ -44,7 +48,7 @@ def seed_queue(engine, names, queue_type="long"):
     ids = []
     with Session(engine) as session:
         for name in names:
-            user = User(name=name, username=name.lower(), password_hash="x")
+            user = User(name=name, username=name.lower())
             session.add(user)
             session.commit()
             session.refresh(user)

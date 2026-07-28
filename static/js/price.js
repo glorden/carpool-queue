@@ -15,17 +15,14 @@ const EDIT_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor
 
 const DELETE_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
 
-function currentUserId() {
-    return localStorage.getItem("carpool_user_id");
-}
+let currentUser = null;
 
 function requireUser() {
-    const id = currentUserId();
-    if (!id) {
-        alert("Сначала выберите себя на Главной");
+    if (!currentUser) {
+        alert("Сначала войдите через VK");
         return null;
     }
-    return Number(id);
+    return currentUser.user_id;
 }
 
 function normalize(text) {
@@ -342,6 +339,7 @@ function initPriceSearch() {
 }
 
 async function init() {
+    currentUser = await window.sessionReady;
     initAddForms();
     initPriceSearch();
     await refreshAll();

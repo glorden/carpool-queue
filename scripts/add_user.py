@@ -52,7 +52,7 @@ with Session(engine) as session:
         print(f"Пользователь с username={username!r} уже существует (id={existing.id})")
         sys.exit(1)
 
-    user = User(name=name, username=username, password_hash="")
+    user = User(name=name, username=username)
     session.add(user)
     session.commit()
     session.refresh(user)
