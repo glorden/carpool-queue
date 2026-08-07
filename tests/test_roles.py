@@ -222,6 +222,52 @@ def test_assign_already_assigned_to_same_driver_rejected(client, db_engine):
     assert resp.status_code == 400
 
 
+# --- PATCH /orders/{id} ---
+
+
+def test_update_order_requires_dispatcher_role(client, db_engine):
+    a, _, _ = seed_queue(db_engine, ["A", "B", "C"])
+    login_as(db_engine, a)
+    order_id = client.post("/orders", json={"route": "t", "queue_type": "long"}).json()["id"]
+
+    resp = client.patch(f"/orders/{order_id}", json={"comment": "срочно"})
+    assert resp.status_code == 403  # a — водитель, не диспетчер
+
+
+def test_update_order_allowed_for_dispatcher(client, db_engine):
+    a, _, _ = seed_queue(db_engine, ["A", "B", "C"])
+    login_as(db_engine, a)
+    order_id = client.post("/orders", json={"route": "t", "queue_type": "long"}).json()["id"]
+
+    dispatcher_id = _make_user(db_engine, "Dispatcher", is_dispatcher=True)
+    login_as(db_engine, dispatcher_id)
+    resp = client.patch(f"/orders/{order_id}", json={"comment": "срочно"})
+    assert resp.status_code == 200
+
+
+# --- POST /orders/{id}/replace ---
+
+
+def test_replace_order_requires_dispatcher_role(client, db_engine):
+    a, _, _ = seed_queue(db_engine, ["A", "B", "C"])
+    login_as(db_engine, a)
+    order_id = client.post("/orders", json={"route": "t", "queue_type": "long"}).json()["id"]
+
+    resp = client.post(f"/orders/{order_id}/replace", json={"route": "t2", "queue_type": "short"})
+    assert resp.status_code == 403
+
+
+def test_replace_order_allowed_for_dispatcher(client, db_engine):
+    a, _, _ = seed_queue(db_engine, ["A", "B", "C"])
+    login_as(db_engine, a)
+    order_id = client.post("/orders", json={"route": "t", "queue_type": "long"}).json()["id"]
+
+    dispatcher_id = _make_user(db_engine, "Dispatcher", is_dispatcher=True)
+    login_as(db_engine, dispatcher_id)
+    resp = client.post(f"/orders/{order_id}/replace", json={"route": "t2", "queue_type": "short"})
+    assert resp.status_code == 200
+
+
 # --- /admin/*: admin-only ---
 
 

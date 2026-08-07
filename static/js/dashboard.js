@@ -81,6 +81,158 @@ function createAssignControl(order) {
     return wrap;
 }
 
+function startEditOrder(li, order) {
+    li.innerHTML = "";
+    li.classList.add("order-editing");
+
+    const row = document.createElement("div");
+    row.className = "order-edit-row";
+
+    const routeInput = document.createElement("input");
+    routeInput.type = "text";
+    routeInput.value = order.route || "";
+    routeInput.placeholder = "Маршрут";
+    routeInput.className = "order-edit-input";
+
+    const commentInput = document.createElement("input");
+    commentInput.type = "text";
+    commentInput.value = order.comment || "";
+    commentInput.placeholder = "Комментарий";
+    commentInput.className = "order-edit-input";
+
+    row.appendChild(routeInput);
+    row.appendChild(commentInput);
+
+    const actions = document.createElement("div");
+    actions.className = "order-actions";
+
+    const saveBtn = document.createElement("button");
+    saveBtn.type = "button";
+    saveBtn.textContent = "Сохранить";
+    saveBtn.className = "btn-accept";
+    saveBtn.addEventListener("click", async () => {
+        try {
+            // Значения шлём как есть (включая "") — на PATCH "" осознанно
+            // очищает поле, null означает "не трогать" (см. ARCHITECTURE.md).
+            // `|| null` здесь превратил бы очистку в молчаливый no-op.
+            await updateOrder(order.id, {
+                route: routeInput.value,
+                comment: commentInput.value,
+            });
+            await refreshAllOrderLists();
+        } catch (e) {
+            alert(e.message);
+        }
+    });
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.type = "button";
+    cancelBtn.textContent = "Отмена";
+    cancelBtn.className = "btn-decline";
+    cancelBtn.addEventListener("click", () => refreshAllOrderLists());
+
+    actions.appendChild(saveBtn);
+    actions.appendChild(cancelBtn);
+
+    li.appendChild(row);
+    li.appendChild(actions);
+}
+
+function startReplaceOrder(li, order) {
+    li.innerHTML = "";
+    li.classList.add("order-editing");
+
+    const row = document.createElement("div");
+    row.className = "order-edit-row";
+
+    const routeInput = document.createElement("input");
+    routeInput.type = "text";
+    routeInput.value = order.route || "";
+    routeInput.placeholder = "Маршрут";
+    routeInput.className = "order-edit-input";
+
+    const commentInput = document.createElement("input");
+    commentInput.type = "text";
+    commentInput.value = order.comment || "";
+    commentInput.placeholder = "Комментарий";
+    commentInput.className = "order-edit-input";
+
+    row.appendChild(routeInput);
+    row.appendChild(commentInput);
+
+    const typeField = document.createElement("div");
+    typeField.className = "order-type-field";
+    const typeLabel = document.createElement("span");
+    typeLabel.className = "order-type-label";
+    typeLabel.textContent = "Тип заказа:";
+    typeField.appendChild(typeLabel);
+    ["long", "short"].forEach((qt) => {
+        const label = document.createElement("label");
+        label.className = "radio-label";
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = `replace-queue-type-${order.id}`;
+        radio.value = qt;
+        radio.checked = qt === order.queue_type;
+        label.appendChild(radio);
+        label.appendChild(document.createTextNode(QUEUE_TYPE_LABELS[qt]));
+        typeField.appendChild(label);
+    });
+
+    const actions = document.createElement("div");
+    actions.className = "order-actions";
+
+    const saveBtn = document.createElement("button");
+    saveBtn.type = "button";
+    saveBtn.textContent = "Заменить";
+    saveBtn.className = "btn-accept";
+    saveBtn.addEventListener("click", async () => {
+        if (!confirm(`Заменить заказ №${order.id} новым? Старый будет отменён.`)) return;
+        try {
+            await replaceOrder(order.id, {
+                route: routeInput.value || null,
+                comment: commentInput.value || null,
+                queue_type: typeField.querySelector("input:checked").value,
+            });
+            await refreshAllOrderLists();
+        } catch (e) {
+            alert(e.message);
+        }
+    });
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.type = "button";
+    cancelBtn.textContent = "Отмена";
+    cancelBtn.className = "btn-decline";
+    cancelBtn.addEventListener("click", () => refreshAllOrderLists());
+
+    actions.appendChild(saveBtn);
+    actions.appendChild(cancelBtn);
+
+    li.appendChild(row);
+    li.appendChild(typeField);
+    li.appendChild(actions);
+}
+
+function appendEditReplaceButtons(actions, order, li) {
+    if (!isDispatcherOrAdmin()) return;
+
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.textContent = "Изменить";
+    editBtn.className = "btn-edit";
+    editBtn.addEventListener("click", () => startEditOrder(li, order));
+
+    const replaceBtn = document.createElement("button");
+    replaceBtn.type = "button";
+    replaceBtn.textContent = "Заменить";
+    replaceBtn.className = "btn-replace";
+    replaceBtn.addEventListener("click", () => startReplaceOrder(li, order));
+
+    actions.appendChild(editBtn);
+    actions.appendChild(replaceBtn);
+}
+
 async function assignOrder(orderId, driverUserId) {
     try {
         const res = await fetch(`${API_BASE}/orders/${orderId}/assign`, {
@@ -101,6 +253,39 @@ async function assignOrder(orderId, driverUserId) {
     } catch (e) {
         alert(e.message);
     }
+}
+
+async function updateOrder(orderId, fields) {
+    const res = await fetch(`${API_BASE}/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fields),
+    });
+    if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Ошибка изменения заказа");
+    }
+    return res.json();
+}
+
+async function replaceOrder(orderId, body) {
+    const res = await fetch(`${API_BASE}/orders/${orderId}/replace`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Ошибка замены заказа");
+    }
+    return res.json();
+}
+
+async function refreshAllOrderLists() {
+    await refreshPending();
+    await refreshMyOrders();
+    await refreshQueues();
+    await refreshAllAssigned();
 }
 
 function renderPendingOrders(orders) {
@@ -172,6 +357,8 @@ function renderPendingOrders(orders) {
         if (isDispatcherOrAdmin()) {
             actions.appendChild(createAssignControl(order));
         }
+
+        appendEditReplaceButtons(actions, order, li);
 
         const cancelBtn = document.createElement("button");
         cancelBtn.textContent = "Отмена заказа";
@@ -384,6 +571,8 @@ function renderAllAssignedOrders(orders) {
         // Тот же контрол, что на «Заказах, ожидающих ответа» — здесь
         // работает как переназначение (заказ уже assigned)
         actions.appendChild(createAssignControl(order));
+
+        appendEditReplaceButtons(actions, order, li);
 
         const cancelBtn = document.createElement("button");
         cancelBtn.textContent = "Отмена заказа";

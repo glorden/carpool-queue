@@ -327,6 +327,32 @@ header {
     border: 1px solid #7a4fb5;
 }
 
+.order-actions .btn-edit {
+    background: #d7f5f0;
+    border: 1px solid #0a8a7a;
+}
+
+.order-actions .btn-replace {
+    background: #fbe0ef;
+    border: 1px solid #b5397a;
+}
+
+.order-edit-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.order-edit-input {
+    flex: 1;
+    min-width: 140px;
+    padding: 8px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
 #filters-section {
     display: flex;
     flex-wrap: wrap;

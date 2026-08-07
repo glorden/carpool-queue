@@ -55,6 +55,11 @@ class OrderAssign(BaseModel):
     driver_user_id: int
 
 
+class OrderUpdate(BaseModel):
+    route: str | None = None
+    comment: str | None = None
+
+
 class VkLinkRequest(BaseModel):
     user_id: int
 
@@ -120,6 +125,130 @@ def _log_activity(
     )
     session.add(entry)
     session.commit()
+
+
+def _create_order(
+    order_in: OrderCreate,
+    session: Session,
+    current_user: User,
+    replaces_order_id: int | None = None,
+) -> Order:
+    """Создаёт новый заказ и сразу предлагает его первому в очереди
+    соответствующего типа. Общая логика для POST /orders и
+    POST /orders/{id}/replace (см. ARCHITECTURE.md, «Редактирование и
+    замена заказа») — во втором случае вызывается с заполненным
+    replaces_order_id, связывающим новый заказ со старым."""
+    order = Order(
+        route=order_in.route,
+        comment=order_in.comment,
+        queue_type=order_in.queue_type,
+        created_by=current_user.id,
+        replaces_order_id=replaces_order_id,
+    )
+    session.add(order)
+    session.commit()
+    session.refresh(order)
+
+    _log_activity(session, "order_created", f"Создан заказ №{order.id}", order_id=order.id)
+    session.refresh(order)
+
+    first_in_queue = session.exec(
+        select(QueuePosition)
+        .where(QueuePosition.queue_type == order.queue_type)
+        .order_by(QueuePosition.position)
+    ).first()
+
+    if first_in_queue is not None:
+        offer = OrderOffer(order_id=order.id, user_id=first_in_queue.user_id)
+        session.add(offer)
+        session.commit()
+        session.refresh(order)
+
+        driver = session.get(User, first_in_queue.user_id)
+        driver_name = driver.name if driver else "?"
+        notify_offer(order, driver_name, driver.vk_id if driver else None)
+        _log_activity(
+            session,
+            "order_offered",
+            f"Заказ №{order.id} предложен {driver_name}",
+            user_id=first_in_queue.user_id,
+            order_id=order.id,
+        )
+        session.refresh(order)
+
+    return order
+
+
+def _cancel_order(order: Order, session: Session, current_user: User) -> None:
+    """Отменяет заказ. Если он был назначен водителю, возвращает того
+    в начало очереди (см. ARCHITECTURE.md). Общая логика для
+    POST /orders/{id}/cancel и POST /orders/{id}/replace — мутирует
+    order на месте, ничего не возвращает. Бросает HTTPException (400/403)
+    при недопустимом статусе/владении."""
+    if order.status in (OrderStatus.completed, OrderStatus.cancelled):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Order cannot be cancelled from status: {order.status.value}",
+        )
+
+    # Диспетчер и админ могут отменить любой заказ (см. ARCHITECTURE.md,
+    # «Роли и права доступа») — проверка владения ниже только для остальных.
+    # created_by может быть None для заказов, созданных до Шага 26 —
+    # для них сверять личность не с чем, разрешаем любому залогиненному
+    # (см. ARCHITECTURE.md, «Технический долг»)
+    if not (current_user.is_dispatcher or current_user.is_admin):
+        if order.status == OrderStatus.pending:
+            if order.created_by is not None and order.created_by != current_user.id:
+                raise HTTPException(status_code=403, detail="Order was created by someone else")
+        elif order.status == OrderStatus.assigned:
+            known_owners = {uid for uid in (order.created_by, order.assigned_to) if uid is not None}
+            if known_owners and current_user.id not in known_owners:
+                raise HTTPException(status_code=403, detail="Order is not yours")
+
+    if order.status == OrderStatus.assigned and order.assigned_to is not None:
+        user_qp = session.exec(
+            select(QueuePosition)
+            .where(QueuePosition.user_id == order.assigned_to)
+            .where(QueuePosition.queue_type == order.queue_type)
+        ).first()
+        if user_qp is not None:
+            others = session.exec(
+                select(QueuePosition)
+                .where(QueuePosition.user_id != order.assigned_to)
+                .where(QueuePosition.queue_type == order.queue_type)
+                .order_by(QueuePosition.position)
+            ).all()
+
+            # Вставляем сразу после текущего первого, не обгоняя его —
+            # тот, кто первый по праву, не должен терять место из-за
+            # чужой отмены (см. ARCHITECTURE.md)
+            new_order = [others[0], user_qp, *others[1:]] if others else [user_qp]
+            for position, qp in enumerate(new_order):
+                qp.position = position
+                session.add(qp)
+
+            driver = session.get(User, order.assigned_to)
+            _log_activity(
+                session,
+                "queue_changed",
+                f"{driver.name if driver else '?'} возвращён в начало очереди",
+                user_id=order.assigned_to,
+                order_id=order.id,
+            )
+
+    order.status = OrderStatus.cancelled
+    session.add(order)
+    session.commit()
+    session.refresh(order)
+
+    _log_activity(
+        session,
+        "order_cancelled",
+        f"Заказ №{order.id} отменён",
+        user_id=order.assigned_to,
+        order_id=order.id,
+    )
+    session.refresh(order)
 
 
 logger = logging.getLogger(__name__)
@@ -303,44 +432,7 @@ def create_order(
 ):
     """Создаёт новый заказ и сразу предлагает его первому в очереди
     соответствующего типа."""
-    order = Order(
-        route=order_in.route,
-        comment=order_in.comment,
-        queue_type=order_in.queue_type,
-        created_by=current_user.id,
-    )
-    session.add(order)
-    session.commit()
-    session.refresh(order)
-
-    _log_activity(session, "order_created", f"Создан заказ №{order.id}", order_id=order.id)
-    session.refresh(order)
-
-    first_in_queue = session.exec(
-        select(QueuePosition)
-        .where(QueuePosition.queue_type == order.queue_type)
-        .order_by(QueuePosition.position)
-    ).first()
-
-    if first_in_queue is not None:
-        offer = OrderOffer(order_id=order.id, user_id=first_in_queue.user_id)
-        session.add(offer)
-        session.commit()
-        session.refresh(order)
-
-        driver = session.get(User, first_in_queue.user_id)
-        driver_name = driver.name if driver else "?"
-        notify_offer(order, driver_name, driver.vk_id if driver else None)
-        _log_activity(
-            session,
-            "order_offered",
-            f"Заказ №{order.id} предложен {driver_name}",
-            user_id=first_in_queue.user_id,
-            order_id=order.id,
-        )
-        session.refresh(order)
-
-    return order
+    return _create_order(order_in, session, current_user)
 
 
 @app.post("/orders/{order_id}/respond", response_model=Order)
@@ -723,72 +815,101 @@ def cancel_order(
     if order is None:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    if order.status in (OrderStatus.completed, OrderStatus.cancelled):
+    _cancel_order(order, session, current_user)
+
+    return order
+
+
+@app.patch("/orders/{order_id}", response_model=Order)
+def update_order(
+    order_id: int,
+    order_in: OrderUpdate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_dispatcher),
+):
+    """Частичное редактирование маршрута/комментария заказа «на месте»,
+    без затрагивания очереди/офферов. Для смены queue_type или правки
+    уже предложенного/назначенного заказа — POST /orders/{id}/replace
+    (см. ARCHITECTURE.md, «Редактирование и замена заказа»)."""
+    order = session.get(Order, order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    if order.status not in (OrderStatus.pending, OrderStatus.assigned):
         raise HTTPException(
             status_code=400,
-            detail=f"Order cannot be cancelled from status: {order.status.value}",
+            detail=f"Order must be 'pending' or 'assigned' to edit, current status: {order.status.value}",
         )
 
-    # Диспетчер и админ могут отменить любой заказ (см. ARCHITECTURE.md,
-    # «Роли и права доступа») — проверка владения ниже только для остальных.
-    # created_by может быть None для заказов, созданных до Шага 26 —
-    # для них сверять личность не с чем, разрешаем любому залогиненному
-    # (см. ARCHITECTURE.md, «Технический долг»)
-    if not (current_user.is_dispatcher or current_user.is_admin):
-        if order.status == OrderStatus.pending:
-            if order.created_by is not None and order.created_by != current_user.id:
-                raise HTTPException(status_code=403, detail="Order was created by someone else")
-        elif order.status == OrderStatus.assigned:
-            known_owners = {uid for uid in (order.created_by, order.assigned_to) if uid is not None}
-            if known_owners and current_user.id not in known_owners:
-                raise HTTPException(status_code=403, detail="Order is not yours")
+    old_route, old_comment = order.route, order.comment
 
-    if order.status == OrderStatus.assigned and order.assigned_to is not None:
-        user_qp = session.exec(
-            select(QueuePosition)
-            .where(QueuePosition.user_id == order.assigned_to)
-            .where(QueuePosition.queue_type == order.queue_type)
-        ).first()
-        if user_qp is not None:
-            others = session.exec(
-                select(QueuePosition)
-                .where(QueuePosition.user_id != order.assigned_to)
-                .where(QueuePosition.queue_type == order.queue_type)
-                .order_by(QueuePosition.position)
-            ).all()
+    if order_in.route is not None:
+        order.route = order_in.route
+    if order_in.comment is not None:
+        order.comment = order_in.comment
 
-            # Вставляем сразу после текущего первого, не обгоняя его —
-            # тот, кто первый по праву, не должен терять место из-за
-            # чужой отмены (см. ARCHITECTURE.md)
-            new_order = [others[0], user_qp, *others[1:]] if others else [user_qp]
-            for position, qp in enumerate(new_order):
-                qp.position = position
-                session.add(qp)
-
-            driver = session.get(User, order.assigned_to)
-            _log_activity(
-                session,
-                "queue_changed",
-                f"{driver.name if driver else '?'} возвращён в начало очереди",
-                user_id=order.assigned_to,
-                order_id=order.id,
-            )
-
-    order.status = OrderStatus.cancelled
     session.add(order)
     session.commit()
     session.refresh(order)
 
-    _log_activity(
-        session,
-        "order_cancelled",
-        f"Заказ №{order.id} отменён",
-        user_id=order.assigned_to,
-        order_id=order.id,
-    )
-    session.refresh(order)
+    changes = []
+    if order.route != old_route:
+        changes.append(f"маршрут «{old_route or '—'}» → «{order.route or '—'}»")
+    if order.comment != old_comment:
+        changes.append(f"комментарий «{old_comment or '—'}» → «{order.comment or '—'}»")
+
+    if changes:
+        _log_activity(
+            session,
+            "order_edited",
+            f"Заказ №{order.id} изменён: " + "; ".join(changes),
+            user_id=current_user.id,
+            order_id=order.id,
+        )
+        session.refresh(order)
 
     return order
+
+
+@app.post("/orders/{order_id}/replace", response_model=Order)
+def replace_order(
+    order_id: int,
+    order_in: OrderCreate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_dispatcher),
+):
+    """Заменяет заказ новым: старый отменяется (`_cancel_order` — та же
+    логика возврата в очередь, что у обычной отмены), новый создаётся
+    сразу с предложением первому в очереди его queue_type
+    (`_create_order`), со связью replaces_order_id на старый. Нужно для
+    смены queue_type или содержательной правки уже предложенного/
+    назначенного заказа — там, где простого PATCH /orders/{id}
+    недостаточно (см. ARCHITECTURE.md)."""
+    order = session.get(Order, order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    _cancel_order(order, session, current_user)
+
+    new_order = _create_order(order_in, session, current_user, replaces_order_id=order.id)
+
+    _log_activity(
+        session,
+        "order_replaced",
+        f"Заказ №{order.id} заменён заказом №{new_order.id}",
+        user_id=current_user.id,
+        order_id=order.id,
+    )
+    _log_activity(
+        session,
+        "order_replaced",
+        f"Заказ №{new_order.id} создан взамен заказа №{order.id}",
+        user_id=current_user.id,
+        order_id=new_order.id,
+    )
+    session.refresh(new_order)
+
+    return new_order
 
 
 @app.get("/price", response_model=list[PriceItem])

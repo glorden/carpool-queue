@@ -32,8 +32,11 @@ class Order(SQLModel, table=True):
     completed_at: datetime | None = None
     self_assign_reason: str | None = None
     created_by: int | None = Field(default=None, foreign_key="user.id")
+    replaces_order_id: int | None = Field(default=None, foreign_key="order.id")
     # nullable навсегда — исторические заказы до Шага 26 не заполнить задним
     # числом (как и assigned_to/self_assign_reason выше). См. ARCHITECTURE.md.
+    # replaces_order_id заполняется только через POST /orders/{id}/replace
+    # (Шаг 32) — связывает новый заказ со старым, который он заменил.
 
 
 class OrderOffer(SQLModel, table=True):

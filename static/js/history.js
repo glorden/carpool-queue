@@ -41,12 +41,13 @@ function formatDate(value) {
     return d.toLocaleString("ru-RU");
 }
 
-async function loadOrders(status, userId, queueType) {
+async function loadOrders(status, userId, queueType, limit) {
     const params = new URLSearchParams();
 
     if (status) params.set("status", status);
     if (userId) params.set("user_id", userId);
     if (queueType) params.set("queue_type", queueType);
+    if (limit) params.set("limit", limit);
 
     const query = params.toString();
     const url = query ? `${API_BASE}/orders?${query}` : `${API_BASE}/orders`;
@@ -55,14 +56,29 @@ async function loadOrders(status, userId, queueType) {
     return await res.json();
 }
 
-function renderOrders(orders, users) {
+async function loadReplacementMap() {
+    // Нефильтрованный запрос (limit=500 — весь разумный масштаб истории
+    // проекта), НЕЗАВИСИМО от активных фильтров — иначе связь пропадала бы,
+    // например, при фильтре "Статус: Отменён": видна только старая сторона
+    // пары, новая (не cancelled) в тот список не попадает
+    const all = await loadOrders(null, null, null, 500);
+    const map = new Map();
+    all.forEach((o) => {
+        if (o.replaces_order_id) {
+            map.set(o.replaces_order_id, o.id);
+        }
+    });
+    return map;
+}
+
+function renderOrders(orders, users, replacedByMap) {
     const tbody = document.getElementById("history-tbody");
     tbody.innerHTML = "";
 
     if (orders.length === 0) {
         const tr = document.createElement("tr");
         tr.className = "empty-row";
-        tr.innerHTML = `<td colspan="9">Заказы не найдены</td>`;
+        tr.innerHTML = `<td colspan="10">Заказы не найдены</td>`;
         tbody.appendChild(tr);
         return;
     }
@@ -80,6 +96,15 @@ function renderOrders(orders, users) {
             ? userMap[order.assigned_to] || `#${order.assigned_to}`
             : "—";
 
+        const relationParts = [];
+        if (order.replaces_order_id) {
+            relationParts.push(`заменяет №${order.replaces_order_id}`);
+        }
+        if (replacedByMap.has(order.id)) {
+            relationParts.push(`заменён №${replacedByMap.get(order.id)}`);
+        }
+        const relationText = relationParts.length ? relationParts.join("; ") : "—";
+
         const cells = [
             ["ID", order.id],
             ["Тип", QUEUE_TYPE_LABELS[order.queue_type] || order.queue_type],
@@ -90,6 +115,7 @@ function renderOrders(orders, users) {
             ["Создан", formatDate(order.created_at)],
             ["Завершён", formatDate(order.completed_at)],
             ["Причина самоназначения", order.self_assign_reason || "—"],
+            ["Замена", relationText],
         ];
 
         cells.forEach(([label, value]) => {
@@ -108,9 +134,12 @@ async function applyFilters(users) {
     const userId = document.getElementById("filter-user").value;
     const queueType = document.getElementById("filter-queue-type").value;
 
-    const orders = await loadOrders(status, userId, queueType);
+    const [orders, replacedByMap] = await Promise.all([
+        loadOrders(status, userId, queueType),
+        loadReplacementMap(),
+    ]);
 
-    renderOrders(orders, users);
+    renderOrders(orders, users, replacedByMap);
 }
 
 let currentUser = null;
