@@ -10,7 +10,14 @@ async function fetchCurrentUser() {
     const res = await fetch("/me");
     const data = await res.json();
     return data.authenticated
-        ? { user_id: data.user_id, name: data.name, username: data.username }
+        ? {
+              user_id: data.user_id,
+              name: data.name,
+              username: data.username,
+              is_driver: data.is_driver,
+              is_dispatcher: data.is_dispatcher,
+              is_admin: data.is_admin,
+          }
         : null;
 }
 
