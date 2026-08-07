@@ -38,6 +38,13 @@ function renderQueue(queue, queueType) {
 
 let currentQueues = { long: [], short: [] };
 
+function findDriverName(userId, queueType) {
+    const entry = (currentQueues[queueType] || []).find(
+        (q) => String(q.user_id) === String(userId)
+    );
+    return entry ? entry.name : `#${userId}`;
+}
+
 async function refreshQueues() {
     currentQueues.long = await loadQueue("long");
     currentQueues.short = await loadQueue("short");
@@ -66,6 +73,14 @@ function createAssignControl(order) {
         option.textContent = entry.name;
         select.appendChild(option);
     });
+
+    // Заказ уже назначен — предвыбираем текущего исполнителя, а не
+    // первого в очереди по умолчанию. Без этого select показывал бы
+    // произвольного водителя, и случайный клик "Назначить" без
+    // осознанного выбора в списке мог бы отдать заказ не тому.
+    if (order.assigned_to != null) {
+        select.value = String(order.assigned_to);
+    }
 
     const assignBtn = document.createElement("button");
     assignBtn.type = "button";
@@ -560,16 +575,20 @@ function renderAllAssignedOrders(orders) {
         const li = document.createElement("li");
 
         const routeText = order.route ? order.route : "Маршрут не указан";
+        const driverName = findDriverName(order.assigned_to, order.queue_type);
         const textSpan = document.createElement("span");
         textSpan.appendChild(createTypeBadge(order.queue_type));
-        textSpan.appendChild(document.createTextNode(` #${order.id} ${routeText}`));
+        textSpan.appendChild(
+            document.createTextNode(` #${order.id} ${routeText} — исполнитель: ${driverName}`)
+        );
         li.appendChild(textSpan);
 
         const actions = document.createElement("span");
         actions.className = "order-actions";
 
         // Тот же контрол, что на «Заказах, ожидающих ответа» — здесь
-        // работает как переназначение (заказ уже assigned)
+        // работает как переназначение (заказ уже assigned), select
+        // предвыбран на текущего исполнителя (см. createAssignControl)
         actions.appendChild(createAssignControl(order));
 
         appendEditReplaceButtons(actions, order, li);
