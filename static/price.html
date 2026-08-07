@@ -7,8 +7,10 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/static/fav/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/static/fav/favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/fav/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Прайс">
     <link rel="icon" href="/static/fav/favicon.ico">
-    <link rel="manifest" href="/static/fav/site.webmanifest">
+    <link rel="manifest" href="/static/fav/price.webmanifest">
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
@@ -19,6 +21,8 @@
     <div id="site-user" class="site-user"></div>
 
     <nav id="site-nav" class="site-nav"></nav>
+
+    <div id="install-prompt" class="install-prompt" hidden></div>
 
     <main>
         <div id="login-prompt" class="login-prompt" hidden>
@@ -82,6 +86,7 @@
 
     <script src="/static/js/nav.js"></script>
     <script src="/static/js/session.js"></script>
+    <script src="/static/js/install.js"></script>
     <script src="/static/js/price.js"></script>
 </body>
 </html>

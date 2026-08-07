@@ -1,10 +1,10 @@
 {
-    "id": "/",
-    "name": "Очередь",
-    "short_name": "Очередь",
-    "description": "Очередь водителей и заказы на поездки",
+    "id": "/static/price.html",
+    "name": "Прайс",
+    "short_name": "Прайс",
+    "description": "Прайс-лист услуг",
     "lang": "ru",
-    "start_url": "/",
+    "start_url": "/static/price.html",
     "scope": "/",
     "icons": [
         {

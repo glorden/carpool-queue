@@ -80,6 +80,28 @@ header {
     color: #555;
 }
 
+.install-prompt {
+    margin-bottom: 16px;
+}
+
+.btn-install {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 6px 14px;
+    font-size: 14px;
+    background: #fff;
+    border: 1px solid #37c;
+    color: #37c;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.install-hint {
+    font-size: 13px;
+    color: #666;
+}
+
 .login-prompt {
     text-align: center;
     padding: 48px 16px;

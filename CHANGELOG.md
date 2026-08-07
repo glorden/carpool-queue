@@ -8,6 +8,25 @@
 ### Планируется
 - Курс на будущее: разделение `routers`/`services` при росте `main.py` (см. ARCHITECTURE.md)
 
+## [0.5.0] - 2026-08-07
+
+### Добавлено
+- Страница «Прайс» устанавливается на домашний экран отдельным значком —
+  свой `static/fav/price.webmanifest` («Прайс»), не общий `site.webmanifest`
+  (см. ARCHITECTURE.md, «PWA»)
+- Кнопка «Установить на экран» (`static/js/install.js`) — Android/desktop
+  Chrome/Edge через `beforeinstallprompt`, iOS — текстовая подсказка
+  вместо кнопки (Apple не позволяет запускать установку программно)
+- `apple-mobile-web-app-capable`/`apple-mobile-web-app-title` на всех
+  страницах — на iOS Safari «Добавить на экран» теперь открывает
+  полноэкранный standalone-режим с правильным названием под иконкой,
+  а не закладку с именем сайта по умолчанию
+
+### Изменено
+- `site.webmanifest` — `name`/`short_name` переименованы в «Очередь»
+  (было «Carpool Queue — Очередь заказов» / `"Carpool"`), добавлено
+  явное поле `id`
+
 ## [0.4.2] - 2026-08-07
 
 ### Изменено
