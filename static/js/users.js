@@ -10,7 +10,19 @@ const ROLE_TAG_CLASSES = {
     is_admin: "role-tag-admin",
 };
 
+// Порядок отображения ролей везде: администратор → диспетчер → водитель.
+const ROLE_ORDER = ["is_admin", "is_dispatcher", "is_driver"];
+
 let currentUser = null;
+
+function highestRoleRank(user) {
+    const rank = ROLE_ORDER.findIndex((roleKey) => user[roleKey]);
+    return rank === -1 ? ROLE_ORDER.length : rank;
+}
+
+function sortUsersByRole(users) {
+    return [...users].sort((a, b) => highestRoleRank(a) - highestRoleRank(b));
+}
 
 function updateAuthGate() {
     document.getElementById("auth-gated").hidden = !currentUser;
@@ -32,6 +44,7 @@ function createRoleTag(roleKey) {
 function renderUsers(users) {
     const list = document.getElementById("users-list");
     list.innerHTML = "";
+    users = sortUsersByRole(users);
 
     if (users.length === 0) {
         const li = document.createElement("li");
@@ -50,7 +63,7 @@ function renderUsers(users) {
 
         const roles = document.createElement("span");
         roles.className = "users-list-roles";
-        ["is_driver", "is_dispatcher", "is_admin"]
+        ROLE_ORDER
             .filter((roleKey) => user[roleKey])
             .forEach((roleKey) => roles.appendChild(createRoleTag(roleKey)));
 
