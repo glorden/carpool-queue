@@ -3,9 +3,19 @@
 // идут через сеть. Очередь и заказы — живые операционные данные, показать
 // водителю устаревшую офлайн-копию (кто первый, какой заказ ещё pending)
 // реально опасно для бизнеса, а не просто неудобно (см. ARCHITECTURE.md,
-// «PWA»). Бампать CACHE_NAME при следующем изменении style.css/*.js —
-// иначе вернувшийся пользователь может залипнуть на старой статике.
-const CACHE_NAME = "carpool-static-v1";
+// «PWA»).
+//
+// Стратегия — stale-while-revalidate, не чистый cache-first (был им до
+// 0.4.2): отдаём закэшированный файл сразу, если он есть, но параллельно
+// всегда идём в сеть и обновляем кэш для следующего раза. Чистый
+// cache-first без этого требовал вручную бампать CACHE_NAME при каждом
+// изменении style.css/*.js — на практике это один раз забыли сделать
+// (0.4.1) и пользователь застрял на старой версии session.js на
+// обычной навигации по ссылкам (Ctrl+F5 помогал — он обходит service
+// worker целиком, это поведение браузера, не этого кода). Теперь
+// свежая версия подхватывается сама, максимум через одну лишнюю
+// загрузку — без ручных версий вообще.
+const CACHE_NAME = "carpool-static-v2";
 const STATIC_PREFIXES = ["/static/css/", "/static/js/", "/static/fav/"];
 
 function isCacheableStatic(url) {
@@ -40,13 +50,21 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
         caches.open(CACHE_NAME).then(async (cache) => {
             const cached = await cache.match(request);
-            if (cached) return cached;
 
-            const response = await fetch(request);
-            if (response.ok) {
-                cache.put(request, response.clone());
-            }
-            return response;
+            const revalidate = fetch(request)
+                .then((response) => {
+                    if (response.ok) cache.put(request, response.clone());
+                    return response;
+                })
+                .catch(() => null);
+
+            // Без waitUntil браузер может прибить воркер сразу после того,
+            // как respondWith() получит cached — фоновое обновление кэша
+            // до сети может не доехать
+            event.waitUntil(revalidate);
+
+            if (cached) return cached;
+            return (await revalidate) || Response.error();
         })
     );
 });
