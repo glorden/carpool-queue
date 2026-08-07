@@ -108,7 +108,15 @@ def test_full_self_link_flow(client, db_engine, monkeypatch):
     assert link_resp.json() == {"user_id": a, "name": "A"}
 
     me = client.get("/me").json()
-    assert me == {"authenticated": True, "user_id": a, "name": "A", "username": "a"}
+    assert me == {
+        "authenticated": True,
+        "user_id": a,
+        "name": "A",
+        "username": "a",
+        "is_driver": True,
+        "is_dispatcher": False,
+        "is_admin": False,
+    }
 
     with Session(db_engine) as session:
         assert session.get(User, a).vk_id == 222
@@ -140,7 +148,15 @@ def test_existing_vk_id_logs_in_directly_without_link_screen(client, db_engine, 
 
     assert callback_resp.headers["location"] == "/"
     me = client.get("/me").json()
-    assert me == {"authenticated": True, "user_id": a, "name": "A", "username": "a"}
+    assert me == {
+        "authenticated": True,
+        "user_id": a,
+        "name": "A",
+        "username": "a",
+        "is_driver": True,
+        "is_dispatcher": False,
+        "is_admin": False,
+    }
 
 
 def test_no_unclaimed_users_denies_login(client, db_engine, monkeypatch):

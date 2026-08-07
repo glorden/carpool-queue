@@ -5,7 +5,13 @@ from fastapi import FastAPI, Depends, HTTPException, Query, Request
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 from starlette.middleware.sessions import SessionMiddleware
-from app.auth import get_current_user_optional, get_current_user_required
+from app.auth import (
+    get_current_user_optional,
+    get_current_user_required,
+    require_admin,
+    require_dispatcher,
+    require_driver,
+)
 from app.config import SECRET_KEY, SESSION_COOKIE_SECURE
 from app.database import get_session
 from app.models.user import User
@@ -13,7 +19,12 @@ from app.models.queue import QueuePosition, QueueType
 from app.models.order import Order, OrderOffer, OfferResponse, OrderStatus
 from app.models.price import PriceItem, PriceLogEntry
 from app.models.activity import ActivityLog
-from app.notifications import notify_accepted, notify_offer, notify_self_assigned
+from app.notifications import (
+    notify_accepted,
+    notify_assigned,
+    notify_offer,
+    notify_self_assigned,
+)
 from app.vk_oauth import (
     build_authorize_url,
     exchange_code,
@@ -40,8 +51,31 @@ class OrderSelfAssign(BaseModel):
     reason: str
 
 
+class OrderAssign(BaseModel):
+    driver_user_id: int
+
+
 class VkLinkRequest(BaseModel):
     user_id: int
+
+
+class AdminUserCreate(BaseModel):
+    name: str
+    username: str
+    is_driver: bool = False
+    is_dispatcher: bool = False
+    is_admin: bool = False
+    queue_types: list[QueueType] = []
+
+
+class AdminRolesUpdate(BaseModel):
+    is_driver: bool | None = None
+    is_dispatcher: bool | None = None
+    is_admin: bool | None = None
+
+
+class AdminQueueReorder(BaseModel):
+    user_ids: list[int]
 
 
 class PriceItemCreate(BaseModel):
@@ -58,6 +92,16 @@ class PriceItemUpdate(BaseModel):
 
 def _price_snapshot(item: PriceItem) -> str:
     return f"{item.category} / {item.name} / {item.price_text}"
+
+
+def _user_dict(user: User) -> dict:
+    return {
+        "user_id": user.id,
+        "name": user.name,
+        "is_driver": user.is_driver,
+        "is_dispatcher": user.is_dispatcher,
+        "is_admin": user.is_admin,
+    }
 
 
 def _log_activity(
@@ -106,6 +150,15 @@ def favicon():
     return FileResponse("static/fav/favicon.ico")
 
 
+@app.get("/sw.js", include_in_schema=False)
+def service_worker():
+    """Отдаётся с корня (не /static/), чтобы scope service worker'а по
+    умолчанию покрывал весь сайт, а не только /static/* (см.
+    ARCHITECTURE.md, «PWA»). media_type — явно, браузер отказывается
+    регистрировать SW при неверном Content-Type."""
+    return FileResponse("static/sw.js", media_type="text/javascript")
+
+
 ### /docs, /redoc, /openapi.json закрыты сессией (docs_url=None выше) —
 ### сайт целиком закрыт под VK ID, эти ручки не исключение (см. ARCHITECTURE.md) ###
 
@@ -131,7 +184,7 @@ def list_users(
 ):
     """Возвращает всех пользователей, включая диспетчеров без очереди."""
     users = session.exec(select(User)).all()
-    return [{"user_id": u.id, "name": u.name} for u in users]
+    return [_user_dict(u) for u in users]
 
 
 @app.get("/queue")
@@ -295,7 +348,7 @@ def respond_to_order(
     order_id: int,
     respond_in: OrderRespond,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user_required),
+    current_user: User = Depends(require_driver),
 ):
     """Принять или отклонить предложенный заказ."""
     order = session.get(Order, order_id)
@@ -424,7 +477,7 @@ def self_assign_order(
     order_id: int,
     self_assign_in: OrderSelfAssign,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user_required),
+    current_user: User = Depends(require_driver),
 ):
     """Самоназначение на заказ вне очереди: водитель указывает причину
     (например, уже находится в городе подачи), сразу становится
@@ -507,11 +560,124 @@ def self_assign_order(
     return order
 
 
+@app.post("/orders/{order_id}/assign", response_model=Order)
+def assign_order(
+    order_id: int,
+    assign_in: OrderAssign,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_dispatcher),
+):
+    """Прямое назначение (или переназначение) заказа конкретному водителю
+    диспетчером/админом, в обход обычного цикла предложений по очереди
+    (см. ARCHITECTURE.md, «Роли и права доступа»)."""
+    order = session.get(Order, order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    if order.status not in (OrderStatus.pending, OrderStatus.assigned):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Order must be 'pending' or 'assigned' to assign, current status: {order.status.value}",
+        )
+
+    driver = session.get(User, assign_in.driver_user_id)
+    if driver is None or not driver.is_driver:
+        raise HTTPException(status_code=400, detail="Target user is not a driver")
+
+    driver_qp = session.exec(
+        select(QueuePosition)
+        .where(QueuePosition.user_id == driver.id)
+        .where(QueuePosition.queue_type == order.queue_type)
+    ).first()
+    if driver_qp is None:
+        raise HTTPException(status_code=400, detail="Driver is not in the queue of this type")
+
+    if order.status == OrderStatus.assigned and order.assigned_to == driver.id:
+        raise HTTPException(status_code=400, detail="Order is already assigned to this driver")
+
+    was_reassigned = order.status == OrderStatus.assigned
+    previous_driver_id = order.assigned_to if was_reassigned else None
+
+    if order.status == OrderStatus.pending:
+        pending_offer = session.exec(
+            select(OrderOffer)
+            .where(OrderOffer.order_id == order_id)
+            .where(OrderOffer.response == OfferResponse.pending)
+            .order_by(OrderOffer.offered_at.desc())
+        ).first()
+        if pending_offer is not None:
+            pending_offer.response = OfferResponse.declined
+            pending_offer.responded_at = datetime.utcnow()
+            session.add(pending_offer)
+
+    offer = OrderOffer(
+        order_id=order.id,
+        user_id=driver.id,
+        response=OfferResponse.accepted,
+        responded_at=datetime.utcnow(),
+    )
+    session.add(offer)
+
+    # Переназначение: прежний исполнитель возвращается вторым в очередь —
+    # та же логика вставки, что в cancel_order (не по его вине забрали
+    # заказ, но обгонять честно первого он не должен)
+    if was_reassigned and previous_driver_id is not None:
+        previous_qp = session.exec(
+            select(QueuePosition)
+            .where(QueuePosition.user_id == previous_driver_id)
+            .where(QueuePosition.queue_type == order.queue_type)
+        ).first()
+        if previous_qp is not None:
+            others = session.exec(
+                select(QueuePosition)
+                .where(QueuePosition.user_id != previous_driver_id)
+                .where(QueuePosition.queue_type == order.queue_type)
+                .order_by(QueuePosition.position)
+            ).all()
+            new_order = [others[0], previous_qp, *others[1:]] if others else [previous_qp]
+            for position, qp in enumerate(new_order):
+                qp.position = position
+                session.add(qp)
+
+    order.status = OrderStatus.assigned
+    order.assigned_to = driver.id
+    session.add(order)
+
+    # Новый исполнитель уходит в конец своей очереди — max берём уже с
+    # учётом переиндексации выше (autoflush перед exec() отправляет ещё не
+    # закоммиченные изменения в текущую транзакцию)
+    max_position = session.exec(
+        select(QueuePosition.position)
+        .where(QueuePosition.queue_type == order.queue_type)
+        .order_by(QueuePosition.position.desc())
+    ).first()
+    driver_qp.position = max_position + 1
+    session.add(driver_qp)
+
+    session.commit()
+    session.refresh(order)
+
+    notify_assigned(
+        order, driver.name, current_user.name, driver.vk_id, reassigned=was_reassigned
+    )
+    verb = "переназначил" if was_reassigned else "назначил"
+    _log_activity(
+        session,
+        "order_assigned",
+        f"{current_user.name} {verb} заказ №{order.id} водителю {driver.name}",
+        user_id=driver.id,
+        order_id=order.id,
+    )
+    session.refresh(order)
+
+    return order
+
+
 @app.post("/orders/{order_id}/complete", response_model=Order)
 def complete_order(
     order_id: int,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user_required),
+    current_user: User = Depends(require_driver),
 ):
     """Отмечает заказ как завершённый."""
     order = session.get(Order, order_id)
@@ -563,16 +729,19 @@ def cancel_order(
             detail=f"Order cannot be cancelled from status: {order.status.value}",
         )
 
+    # Диспетчер и админ могут отменить любой заказ (см. ARCHITECTURE.md,
+    # «Роли и права доступа») — проверка владения ниже только для остальных.
     # created_by может быть None для заказов, созданных до Шага 26 —
     # для них сверять личность не с чем, разрешаем любому залогиненному
     # (см. ARCHITECTURE.md, «Технический долг»)
-    if order.status == OrderStatus.pending:
-        if order.created_by is not None and order.created_by != current_user.id:
-            raise HTTPException(status_code=403, detail="Order was created by someone else")
-    elif order.status == OrderStatus.assigned:
-        known_owners = {uid for uid in (order.created_by, order.assigned_to) if uid is not None}
-        if known_owners and current_user.id not in known_owners:
-            raise HTTPException(status_code=403, detail="Order is not yours")
+    if not (current_user.is_dispatcher or current_user.is_admin):
+        if order.status == OrderStatus.pending:
+            if order.created_by is not None and order.created_by != current_user.id:
+                raise HTTPException(status_code=403, detail="Order was created by someone else")
+        elif order.status == OrderStatus.assigned:
+            known_owners = {uid for uid in (order.created_by, order.assigned_to) if uid is not None}
+            if known_owners and current_user.id not in known_owners:
+                raise HTTPException(status_code=403, detail="Order is not yours")
 
     if order.status == OrderStatus.assigned and order.assigned_to is not None:
         user_qp = session.exec(
@@ -857,6 +1026,178 @@ def get_statistics_summary(
     return {"overall": overall, "by_driver": by_driver}
 
 
+### Администрирование: пользователи, роли, очередь (см. ARCHITECTURE.md,
+### «Роли и права доступа») — веб-аналог scripts/add_user.py и
+### scripts/reorder_queue.py, только для is_admin ###
+
+@app.post("/admin/users")
+def admin_create_user(
+    user_in: AdminUserCreate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_admin),
+):
+    """Создаёт нового пользователя с ролями и, опционально, сразу ставит
+    в конец указанных очередей."""
+    existing = session.exec(select(User).where(User.username == user_in.username)).first()
+    if existing is not None:
+        raise HTTPException(status_code=400, detail="Username already taken")
+
+    if user_in.queue_types and not user_in.is_driver:
+        raise HTTPException(status_code=400, detail="Cannot add to a queue without driver role")
+
+    user = User(
+        name=user_in.name,
+        username=user_in.username,
+        is_driver=user_in.is_driver,
+        is_dispatcher=user_in.is_dispatcher,
+        is_admin=user_in.is_admin,
+    )
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    for qt in user_in.queue_types:
+        max_position = session.exec(
+            select(QueuePosition.position)
+            .where(QueuePosition.queue_type == qt)
+            .order_by(QueuePosition.position.desc())
+        ).first()
+        session.add(
+            QueuePosition(user_id=user.id, queue_type=qt, position=(max_position or 0) + 1)
+        )
+    session.commit()
+
+    return _user_dict(user)
+
+
+@app.patch("/admin/users/{user_id}/roles")
+def admin_update_roles(
+    user_id: int,
+    roles_in: AdminRolesUpdate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_admin),
+):
+    """Частично обновляет роли пользователя (совмещение — просто несколько
+    True одновременно)."""
+    user = session.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if roles_in.is_driver is not None:
+        user.is_driver = roles_in.is_driver
+    if roles_in.is_dispatcher is not None:
+        user.is_dispatcher = roles_in.is_dispatcher
+    if roles_in.is_admin is not None:
+        user.is_admin = roles_in.is_admin
+
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    return _user_dict(user)
+
+
+@app.post("/admin/users/{user_id}/queue/{queue_type}")
+def admin_add_to_queue(
+    user_id: int,
+    queue_type: QueueType,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_admin),
+):
+    """Добавляет уже существующего водителя в конец указанной очереди."""
+    user = session.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not user.is_driver:
+        raise HTTPException(status_code=400, detail="User does not have the driver role")
+
+    existing = session.exec(
+        select(QueuePosition)
+        .where(QueuePosition.user_id == user_id)
+        .where(QueuePosition.queue_type == queue_type)
+    ).first()
+    if existing is not None:
+        raise HTTPException(status_code=400, detail="User is already in this queue")
+
+    max_position = session.exec(
+        select(QueuePosition.position)
+        .where(QueuePosition.queue_type == queue_type)
+        .order_by(QueuePosition.position.desc())
+    ).first()
+    qp = QueuePosition(user_id=user_id, queue_type=queue_type, position=(max_position or 0) + 1)
+    session.add(qp)
+    session.commit()
+    session.refresh(qp)
+
+    return {"user_id": user_id, "queue_type": queue_type, "position": qp.position}
+
+
+@app.delete("/admin/users/{user_id}/queue/{queue_type}")
+def admin_remove_from_queue(
+    user_id: int,
+    queue_type: QueueType,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_admin),
+):
+    """Убирает водителя из указанной очереди и переиндексирует оставшихся
+    (0..n-1), чтобы не оставалось пропусков в position."""
+    qp = session.exec(
+        select(QueuePosition)
+        .where(QueuePosition.user_id == user_id)
+        .where(QueuePosition.queue_type == queue_type)
+    ).first()
+    if qp is None:
+        raise HTTPException(status_code=404, detail="User is not in this queue")
+
+    session.delete(qp)
+    session.commit()
+
+    remaining = session.exec(
+        select(QueuePosition)
+        .where(QueuePosition.queue_type == queue_type)
+        .order_by(QueuePosition.position)
+    ).all()
+    for position, remaining_qp in enumerate(remaining):
+        remaining_qp.position = position
+        session.add(remaining_qp)
+    session.commit()
+
+    return {"status": "ok"}
+
+
+@app.post("/admin/queue/{queue_type}/reorder")
+def admin_reorder_queue(
+    queue_type: QueueType,
+    reorder_in: AdminQueueReorder,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_admin),
+):
+    """Переставляет порядок одной из очередей — список user_ids должен
+    содержать ровно тех же людей, что сейчас в ней состоят (см.
+    scripts/reorder_queue.py — та же валидация)."""
+    if len(reorder_in.user_ids) != len(set(reorder_in.user_ids)):
+        raise HTTPException(status_code=400, detail="Duplicate user_id in list")
+
+    current_qps = session.exec(
+        select(QueuePosition).where(QueuePosition.queue_type == queue_type)
+    ).all()
+    qp_by_user_id = {qp.user_id: qp for qp in current_qps}
+
+    if set(qp_by_user_id.keys()) != set(reorder_in.user_ids):
+        raise HTTPException(
+            status_code=400,
+            detail="user_ids must exactly match the current members of this queue",
+        )
+
+    for position, user_id in enumerate(reorder_in.user_ids):
+        qp_by_user_id[user_id].position = position
+        session.add(qp_by_user_id[user_id])
+
+    session.commit()
+
+    return {"queue_type": queue_type, "order": reorder_in.user_ids}
+
+
 ### Вход через VK ID (см. ARCHITECTURE.md, «Вход через VK ID») ###
 
 @app.get("/auth/vk/login")
@@ -967,9 +1308,4 @@ def logout(request: Request):
 def get_me(user: User | None = Depends(get_current_user_optional)):
     if user is None:
         return {"authenticated": False}
-    return {
-        "authenticated": True,
-        "user_id": user.id,
-        "name": user.name,
-        "username": user.username,
-    }
+    return {"authenticated": True, "username": user.username, **_user_dict(user)}

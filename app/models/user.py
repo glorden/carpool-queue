@@ -14,3 +14,10 @@ class User(SQLModel, table=True):
     # id пользователя VK — источник входа (см. ARCHITECTURE.md, "Вход через
     # VK ID") и тег в уведомлениях. unique — это ключ входа, один VK-аккаунт
     # не может быть привязан к двум User
+
+    # Роли — независимые флаги, совмещение возможно (см. ARCHITECTURE.md,
+    # «Роли и права доступа»). is_admin — суперсет: проходит любую ролевую
+    # проверку независимо от значений двух других полей.
+    is_driver: bool = Field(default=False)
+    is_dispatcher: bool = Field(default=False)
+    is_admin: bool = Field(default=False)

@@ -110,7 +110,7 @@ def test_self_assign_rejects_already_assigned_order(client, db_engine):
 def test_self_assign_rejects_user_outside_queue(client, db_engine):
     a, _, _ = seed_queue(db_engine, ["A", "B", "C"])
     with Session(db_engine) as session:
-        dispatcher = User(name="Dispatcher", username="dispatcher")
+        dispatcher = User(name="Dispatcher", username="dispatcher", is_dispatcher=True)
         session.add(dispatcher)
         session.commit()
         session.refresh(dispatcher)
@@ -119,14 +119,17 @@ def test_self_assign_rejects_user_outside_queue(client, db_engine):
     login_as(db_engine, a)
     order_id = client.post("/orders", json={"route": "test", "queue_type": "long"}).json()["id"]
 
-    # диспетчер не состоит ни в одной очереди водителей
+    # диспетчер не водитель — require_driver отклоняет раньше, чем дело
+    # доходит до проверки принадлежности к конкретной очереди (см.
+    # test_roles.py::test_self_assign_rejects_driver_outside_this_queue_type
+    # для сценария "водитель есть, но не в этой очереди")
     login_as(db_engine, dispatcher_id)
     resp = client.post(
         f"/orders/{order_id}/self-assign",
         json={"reason": "уже рядом"},
     )
 
-    assert resp.status_code == 400
+    assert resp.status_code == 403
 
 
 def test_cancel_assigned_order_returns_driver_to_second_place(client, db_engine):

@@ -1,10 +1,11 @@
 """Добавляет одного пользователя.
 
-По умолчанию ставит его в конец обеих очередей (обычный водитель,
-возит и дальние, и короткие поездки). С флагом --queue-type=long|short
-добавляет только в одну из очередей. С флагом --no-queue создаёт
-пользователя без очереди — для диспетчеров/админов, которые создают
-заказы, но сами в очереди водителей не участвуют.
+По умолчанию — водитель (роль is_driver), ставится в конец обеих очередей
+(возит и дальние, и короткие поездки). С флагом --queue-type=long|short
+добавляется только в одну из очередей. С флагом --no-queue создаётся
+диспетчер (роль is_dispatcher) без очереди — создаёт и назначает заказы,
+но сам в очереди водителей не участвует. Роль администратора этим скриптом
+не выдаётся — см. scripts/grant_role.py.
 
 Использование:
     python -m scripts.add_user "Имя Фамилия" username [--no-queue]
@@ -52,13 +53,18 @@ with Session(engine) as session:
         print(f"Пользователь с username={username!r} уже существует (id={existing.id})")
         sys.exit(1)
 
-    user = User(name=name, username=username)
+    user = User(
+        name=name,
+        username=username,
+        is_driver=not no_queue,
+        is_dispatcher=no_queue,
+    )
     session.add(user)
     session.commit()
     session.refresh(user)
 
     if no_queue:
-        print(f"Добавлен: {user.name} (id={user.id}, username={username}), без очереди (диспетчер)")
+        print(f"Добавлен: {user.name} (id={user.id}, username={username}), роль: диспетчер, без очереди")
     else:
         queue_types = [queue_type_arg] if queue_type_arg else ["long", "short"]
         positions = {}
@@ -74,4 +80,4 @@ with Session(engine) as session:
         session.commit()
 
         positions_text = ", ".join(f"{qt}: позиция {pos}" for qt, pos in positions.items())
-        print(f"Добавлен: {user.name} (id={user.id}, username={username}), {positions_text}")
+        print(f"Добавлен: {user.name} (id={user.id}, username={username}), роль: водитель, {positions_text}")

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Админ</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/fav/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/fav/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/fav/apple-touch-icon.png">
+    <link rel="icon" href="/static/fav/favicon.ico">
+    <link rel="manifest" href="/static/fav/site.webmanifest">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>Админ</h1>
+    </header>
+
+    <div id="site-user" class="site-user"></div>
+
+    <nav id="site-nav" class="site-nav"></nav>
+
+    <main>
+        <div id="login-prompt" class="login-prompt" hidden>
+            <p>Войдите через VK, чтобы попасть в админку.</p>
+        </div>
+
+        <div id="auth-gated" hidden>
+            <div id="admin-forbidden" class="login-prompt" hidden>
+                <p>Доступ только для администратора.</p>
+            </div>
+
+            <div id="admin-content" hidden>
+                <section id="add-user-section">
+                    <h2>Добавить пользователя</h2>
+                    <form id="add-user-form">
+                        <div>
+                            <label for="new-user-name">Имя:</label>
+                            <input type="text" id="new-user-name" required>
+                        </div>
+                        <div>
+                            <label for="new-user-username">Username:</label>
+                            <input type="text" id="new-user-username" required>
+                        </div>
+
+                        <div class="admin-checkbox-field">
+                            <span class="admin-checkbox-field-label">Роли:</span>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="new-user-is-driver"> Водитель
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="new-user-is-dispatcher"> Диспетчер
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="new-user-is-admin"> Администратор
+                            </label>
+                        </div>
+
+                        <div class="admin-checkbox-field">
+                            <span class="admin-checkbox-field-label">В очередь (если водитель):</span>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="new-user-queue-long"> Дальняя
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="new-user-queue-short"> Короткая
+                            </label>
+                        </div>
+
+                        <button type="submit">Добавить</button>
+                    </form>
+                    <p id="add-user-status"></p>
+                </section>
+
+                <section id="roles-section">
+                    <h2>Пользователи и роли</h2>
+                    <ul id="roles-list" class="users-list">
+                        <li>Загрузка...</li>
+                    </ul>
+                </section>
+
+                <section id="admin-queue-section">
+                    <h2>Порядок очереди</h2>
+                    <div class="queue-columns">
+                        <div class="queue-group">
+                            <h3>Дальние поездки</h3>
+                            <ol id="admin-queue-long" class="admin-queue-list">
+                                <li>Загрузка...</li>
+                            </ol>
+                            <div class="admin-queue-add">
+                                <select id="admin-queue-add-select-long"></select>
+                                <button type="button" data-queue-type="long" class="btn-admin-queue-add">Добавить</button>
+                            </div>
+                        </div>
+                        <div class="queue-group">
+                            <h3>Короткие поездки</h3>
+                            <ol id="admin-queue-short" class="admin-queue-list">
+                                <li>Загрузка...</li>
+                            </ol>
+                            <div class="admin-queue-add">
+                                <select id="admin-queue-add-select-short"></select>
+                                <button type="button" data-queue-type="short" class="btn-admin-queue-add">Добавить</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/nav.js"></script>
+    <script src="/static/js/session.js"></script>
+    <script src="/static/js/admin.js"></script>
+</body>
+</html>

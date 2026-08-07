@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Пользователи</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/fav/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/fav/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/fav/apple-touch-icon.png">
+    <link rel="icon" href="/static/fav/favicon.ico">
+    <link rel="manifest" href="/static/fav/site.webmanifest">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>Пользователи</h1>
+    </header>
+
+    <div id="site-user" class="site-user"></div>
+
+    <nav id="site-nav" class="site-nav"></nav>
+
+    <main>
+        <div id="login-prompt" class="login-prompt" hidden>
+            <p>Войдите через VK, чтобы видеть список пользователей.</p>
+        </div>
+
+        <div id="auth-gated" hidden>
+            <ul id="users-list" class="users-list">
+                <li>Загрузка...</li>
+            </ul>
+        </div>
+    </main>
+
+    <script src="/static/js/nav.js"></script>
+    <script src="/static/js/session.js"></script>
+    <script src="/static/js/users.js"></script>
+</body>
+</html>

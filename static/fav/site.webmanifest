@@ -1,7 +1,10 @@
 {
     "name": "Carpool Queue — Очередь заказов",
     "short_name": "Carpool",
+    "description": "Очередь водителей и заказы на поездки",
+    "lang": "ru",
     "start_url": "/",
+    "scope": "/",
     "icons": [
         {
             "src": "/static/fav/android-chrome-192x192.png",

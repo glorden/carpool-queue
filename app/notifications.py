@@ -92,3 +92,22 @@ def notify_self_assigned(
         f"Самоназначение вне очереди на заказ №{order.id} ({type_label}): {driver_mention}.\nПричина: {reason}",
         order.id,
     )
+
+
+def notify_assigned(
+    order,
+    driver_name: str,
+    dispatcher_name: str,
+    driver_vk_id: int | None = None,
+    reassigned: bool = False,
+) -> None:
+    """Шлёт сообщение в общую беседу VK о прямом назначении/переназначении
+    заказа диспетчером вне очереди (см. ARCHITECTURE.md, «Роли и права
+    доступа»)."""
+    driver_mention = _driver_mention(driver_name, driver_vk_id)
+    type_label = _queue_type_label(order.queue_type)
+    verb = "переназначил" if reassigned else "назначил"
+    _send(
+        f"Диспетчер {dispatcher_name} {verb} заказ №{order.id} ({type_label}) водителю {driver_mention}.",
+        order.id,
+    )

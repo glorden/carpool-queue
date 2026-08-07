@@ -23,3 +23,26 @@ def get_current_user_required(
     if user is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
     return user
+
+
+def require_driver(current_user: User = Depends(get_current_user_required)) -> User:
+    """403, если у пользователя нет роли водителя (и он не админ). См.
+    ARCHITECTURE.md, «Роли и права доступа» — is_admin проходит любую
+    ролевую проверку независимо от остальных флагов."""
+    if not (current_user.is_driver or current_user.is_admin):
+        raise HTTPException(status_code=403, detail="Driver role required")
+    return current_user
+
+
+def require_dispatcher(current_user: User = Depends(get_current_user_required)) -> User:
+    """403, если у пользователя нет роли диспетчера (и он не админ)."""
+    if not (current_user.is_dispatcher or current_user.is_admin):
+        raise HTTPException(status_code=403, detail="Dispatcher role required")
+    return current_user
+
+
+def require_admin(current_user: User = Depends(get_current_user_required)) -> User:
+    """403, если пользователь не администратор."""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin role required")
+    return current_user

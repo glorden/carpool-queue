@@ -71,7 +71,7 @@ def seed_queue(engine, names, queue_type="long"):
     ids = []
     with Session(engine) as session:
         for name in names:
-            user = User(name=name, username=name.lower())
+            user = User(name=name, username=name.lower(), is_driver=True)
             session.add(user)
             session.commit()
             session.refresh(user)

@@ -107,7 +107,7 @@ def test_by_driver_excludes_users_without_queue_position(client, db_engine):
     login_as(db_engine, a)
 
     with Session(db_engine) as session:
-        dispatcher = User(name="Dispatcher", username="dispatcher")
+        dispatcher = User(name="Dispatcher", username="dispatcher", is_dispatcher=True)
         session.add(dispatcher)
         session.commit()
         session.refresh(dispatcher)

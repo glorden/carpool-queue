@@ -51,6 +51,58 @@ async function loadPendingOrders() {
     return orders;
 }
 
+function isDispatcherOrAdmin() {
+    return !!currentUser && (currentUser.is_dispatcher || currentUser.is_admin);
+}
+
+function createAssignControl(order) {
+    const wrap = document.createElement("span");
+    wrap.className = "assign-control";
+
+    const select = document.createElement("select");
+    (currentQueues[order.queue_type] || []).forEach((entry) => {
+        const option = document.createElement("option");
+        option.value = entry.user_id;
+        option.textContent = entry.name;
+        select.appendChild(option);
+    });
+
+    const assignBtn = document.createElement("button");
+    assignBtn.type = "button";
+    assignBtn.textContent = "Назначить";
+    assignBtn.className = "btn-assign";
+    assignBtn.addEventListener("click", () => {
+        if (!select.value) return;
+        assignOrder(order.id, select.value);
+    });
+
+    wrap.appendChild(select);
+    wrap.appendChild(assignBtn);
+    return wrap;
+}
+
+async function assignOrder(orderId, driverUserId) {
+    try {
+        const res = await fetch(`${API_BASE}/orders/${orderId}/assign`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ driver_user_id: Number(driverUserId) }),
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || "Ошибка назначения");
+        }
+
+        await refreshPending();
+        await refreshMyOrders();
+        await refreshQueues();
+        await refreshAllAssigned();
+    } catch (e) {
+        alert(e.message);
+    }
+}
+
 function renderPendingOrders(orders) {
     const list = document.getElementById("pending-list");
     const currentUserId = currentUser ? String(currentUser.user_id) : null;
@@ -115,6 +167,10 @@ function renderPendingOrders(orders) {
             );
 
             actions.appendChild(selfAssignBtn);
+        }
+
+        if (isDispatcherOrAdmin()) {
+            actions.appendChild(createAssignControl(order));
         }
 
         const cancelBtn = document.createElement("button");
@@ -297,6 +353,54 @@ async function completeOrder(orderId) {
     }
 }
 
+async function loadAllAssignedOrders() {
+    const res = await fetch(`${API_BASE}/orders?status=assigned`);
+    return await res.json();
+}
+
+function renderAllAssignedOrders(orders) {
+    const list = document.getElementById("all-assigned-list");
+    list.innerHTML = "";
+
+    if (orders.length === 0) {
+        const li = document.createElement("li");
+        li.textContent = "Нет активных заказов";
+        list.appendChild(li);
+        return;
+    }
+
+    orders.forEach((order) => {
+        const li = document.createElement("li");
+
+        const routeText = order.route ? order.route : "Маршрут не указан";
+        const textSpan = document.createElement("span");
+        textSpan.appendChild(createTypeBadge(order.queue_type));
+        textSpan.appendChild(document.createTextNode(` #${order.id} ${routeText}`));
+        li.appendChild(textSpan);
+
+        const actions = document.createElement("span");
+        actions.className = "order-actions";
+
+        // Тот же контрол, что на «Заказах, ожидающих ответа» — здесь
+        // работает как переназначение (заказ уже assigned)
+        actions.appendChild(createAssignControl(order));
+
+        const cancelBtn = document.createElement("button");
+        cancelBtn.textContent = "Отмена заказа";
+        cancelBtn.className = "btn-cancel";
+        cancelBtn.addEventListener("click", () => cancelOrder(order.id));
+        actions.appendChild(cancelBtn);
+
+        li.appendChild(actions);
+        list.appendChild(li);
+    });
+}
+
+async function refreshAllAssigned() {
+    if (!isDispatcherOrAdmin()) return;
+    renderAllAssignedOrders(await loadAllAssignedOrders());
+}
+
 function checkRouteLatin() {
     const routeInput = document.getElementById("route");
     const warning = document.getElementById("route-latin-warning");
@@ -365,9 +469,12 @@ async function init() {
         return;
     }
 
+    document.getElementById("all-assigned-section").hidden = !isDispatcherOrAdmin();
+
     await refreshQueues();
     await refreshPending();
     await refreshMyOrders();
+    await refreshAllAssigned();
 
     document
         .getElementById("create-order-form")

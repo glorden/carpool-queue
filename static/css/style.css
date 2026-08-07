@@ -288,6 +288,23 @@ header {
     border: 1px solid #c90;
 }
 
+.assign-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.assign-control select {
+    padding: 6px 8px;
+    font-size: 14px;
+    min-height: 40px;
+}
+
+.order-actions .btn-assign {
+    background: #ece0fa;
+    border: 1px solid #7a4fb5;
+}
+
 #filters-section {
     display: flex;
     flex-wrap: wrap;
@@ -668,4 +685,187 @@ header {
 
 #driver-stats-table th {
     border-bottom: 2px solid #ccc;
+}
+
+/* Страница «Пользователи» */
+
+.users-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.users-list li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.users-list-name {
+    font-weight: 600;
+}
+
+.users-list-roles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.users-list-no-role {
+    font-size: 12px;
+    color: #888;
+}
+
+.role-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.role-tag-driver {
+    background: #e0f5ea;
+    border: 1px solid #1a8a5c;
+    color: #1a8a5c;
+}
+
+.role-tag-dispatcher {
+    background: #ece0fa;
+    border: 1px solid #7a4fb5;
+    color: #7a4fb5;
+}
+
+.role-tag-admin {
+    background: #eee;
+    border: 1px solid #333;
+    color: #333;
+}
+
+/* Страница «Админ» */
+
+#add-user-section form div {
+    margin-bottom: 8px;
+}
+
+#add-user-section label:not(.checkbox-label) {
+    display: inline-block;
+    width: 110px;
+}
+
+#add-user-section input[type="text"] {
+    padding: 8px;
+    width: 100%;
+    max-width: 320px;
+    font-size: 16px;
+}
+
+#add-user-section button[type="submit"] {
+    padding: 10px 16px;
+    margin-top: 4px;
+    min-height: 44px;
+    font-size: 15px;
+}
+
+#add-user-status {
+    font-size: 14px;
+    color: #0a7;
+}
+
+#add-user-status.error {
+    color: #c33;
+}
+
+.admin-checkbox-field {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 14px;
+    margin-bottom: 8px;
+}
+
+.admin-checkbox-field-label {
+    display: block;
+    width: 100%;
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 2px;
+}
+
+.checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+.admin-roles-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+}
+
+.admin-queue-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 10px;
+}
+
+.admin-queue-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.admin-queue-name {
+    flex: 1;
+}
+
+.admin-queue-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.admin-queue-actions button {
+    min-width: 36px;
+    min-height: 36px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.btn-queue-remove {
+    color: #c33;
+    border-color: #c33;
+}
+
+.admin-queue-add {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.admin-queue-add select {
+    padding: 6px 8px;
+    font-size: 14px;
+    min-height: 36px;
+    flex: 1;
+    min-width: 120px;
+}
+
+.admin-queue-add button {
+    padding: 8px 14px;
+    min-height: 40px;
+    cursor: pointer;
 }
