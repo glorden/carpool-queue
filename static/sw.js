@@ -15,7 +15,16 @@
 // worker целиком, это поведение браузера, не этого кода). Теперь
 // свежая версия подхватывается сама, максимум через одну лишнюю
 // загрузку — без ручных версий вообще.
-const CACHE_NAME = "carpool-static-v2";
+//
+// {cache: "reload"} на fetch() ниже — обязателен. Сервер не отдаёт
+// Cache-Control для статики (только ETag/Last-Modified), поэтому браузер
+// кэширует её эвристически поверх обычного HTTP-кэша. Без этой опции
+// "ревалидация в фоне" сама могла молча вернуться из того же браузерного
+// HTTP-кэша (не дойдя до сети) и переписать Cache Storage тем же старым
+// файлом — снаружи выглядело как "обычная навигация не лечит, помогает
+// только Ctrl+F5, но и тот не лечит навсегда" (найдено на живом проде
+// после Шага 32, см. PROGRESS.md).
+const CACHE_NAME = "carpool-static-v3";
 const STATIC_PREFIXES = ["/static/css/", "/static/js/", "/static/fav/"];
 
 function isCacheableStatic(url) {
@@ -51,7 +60,7 @@ self.addEventListener("fetch", (event) => {
         caches.open(CACHE_NAME).then(async (cache) => {
             const cached = await cache.match(request);
 
-            const revalidate = fetch(request)
+            const revalidate = fetch(request, { cache: "reload" })
                 .then((response) => {
                     if (response.ok) cache.put(request, response.clone());
                     return response;
